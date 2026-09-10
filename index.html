@@ -116,27 +116,11 @@
 
         .main-layout {
             display: grid;
+            grid-template-columns: 3fr 1fr;
             gap: 20px;
             width: 100%;
             max-width: 1300px;
             z-index: 10;
-        }
-
-        body.is-host-layout .main-layout {
-            grid-template-columns: 3fr 1fr;
-        }
-        body.is-host-layout .bottom-players-container {
-            display: none !important;
-        }
-
-        body:not(.is-host-layout) .main-layout {
-            grid-template-columns: 1fr;
-        }
-        body:not(.is-host-layout) .sidebar {
-            display: none !important;
-        }
-        body:not(.is-host-layout) .bottom-players-container {
-            display: flex !important;
         }
 
         .board {
@@ -186,6 +170,18 @@
             text-shadow: 0 0 8px rgba(0, 240, 255, 0.6);
         }
 
+        /* Nur der Host darf Fragen anklicken */
+        body:not(.is-host-user) .card {
+            cursor: default !important;
+        }
+        body:not(.is-host-user) .card:hover {
+            border-color: rgba(0, 240, 255, 0.3) !important;
+            color: var(--cyan-glow) !important;
+            text-shadow: 0 0 8px rgba(0, 240, 255, 0.6) !important;
+            transform: none !important;
+            background: rgba(15, 23, 42, 0.8) !important;
+        }
+
         .card:hover {
             border-color: var(--pink-glow);
             color: var(--pink-glow);
@@ -217,10 +213,11 @@
 
         .bottom-players-container {
             width: 100%;
+            display: flex;
             flex-direction: column;
             gap: 10px;
-            margin-top: 5px;
-            display: none;
+            margin-top: 15px;
+            max-width: 1300px;
         }
 
         .players-row {
@@ -441,8 +438,8 @@
     <div class="header-bar">
         <div class="logo-title">JEOPARDY <span>GALAXY</span></div>
         <div class="nav-buttons">
-            <button onclick="resetGame()">🔄 Neustart</button>
-            <button onclick="openEditor()">⚙️ Editor</button>
+            <button onclick="resetGame()" id="btnReset" style="display:none;">🔄 Neustart</button>
+            <button onclick="openEditor()" id="btnEditor" style="display:none;">⚙️ Editor</button>
             <button onclick="openSettings()">📷 Einstellungen</button>
             <button id="btnHost" onclick="createLobby()">👑 Lobby Erstellen</button>
             <div id="roomCodeContainer" style="display:none; align-items:center; gap:4px; background: rgba(0,0,0,0.4); padding: 4px 8px; border-radius: 6px; border: 1px solid var(--cyan-glow);">
@@ -458,8 +455,8 @@
         <div class="board" id="board"></div>
 
         <div class="sidebar">
-            <h3 style="font-family: 'Orbitron', sans-serif; margin: 0; color: var(--cyan-glow); font-size: 14px;">HOST & SPIELER</h3>
-            <div class="players-grid" id="playersGridSidebar"></div>
+            <h3 style="font-family: 'Orbitron', sans-serif; margin: 0; color: var(--cyan-glow); font-size: 14px;">HOST</h3>
+            <div class="players-grid" id="hostSidebarContainer"></div>
             
             <div class="host-sidebar-panel">
                 <span style="font-family: 'Orbitron', sans-serif; font-size: 11px; color: var(--cyan-glow);">⚡ BUZZER & QUEUE</span>
@@ -705,9 +702,13 @@
 
         function updateLayoutMode() {
             if (isHost) {
-                document.body.classList.add('is-host-layout');
+                document.body.classList.add('is-host-user');
+                document.getElementById('btnReset').style.display = 'inline-flex';
+                document.getElementById('btnEditor').style.display = 'inline-flex';
             } else {
-                document.body.classList.remove('is-host-layout');
+                document.body.classList.remove('is-host-user');
+                document.getElementById('btnReset').style.display = 'none';
+                document.getElementById('btnEditor').style.display = 'none';
             }
         }
 
@@ -733,7 +734,11 @@
                     card.className = 'card' + (cardData.used ? ' used' : '');
                     card.innerText = cardData.points;
                     card.id = `card-${cIdx}-${r}`;
-                    card.onclick = () => onCardClick(cIdx, r);
+                    
+                    if (isHost) {
+                        card.onclick = () => onCardClick(cIdx, r);
+                    }
+                    
                     boardEl.appendChild(card);
                 });
             }
@@ -782,7 +787,6 @@
 
         async function getDevices() {
             try {
-                // Vorher einmal kurz Berechtigungen anfordern, damit echte Namen geladen werden
                 await navigator.mediaDevices.getUserMedia({ video: true, audio: true }).catch(() => {});
                 
                 const devices = await navigator.mediaDevices.enumerateDevices();
@@ -812,8 +816,11 @@
                     audio: audioId ? { deviceId: { exact: audioId } } : true
                 };
                 myStream = await navigator.mediaDevices.getUserMedia(constraints);
+                
+                // Lokalen Stream direkt anzeigen
                 const myId = peer ? peer.id : 'me';
-                addOrUpdatePlayerCard(myId, getMyName(), players[myId]?.score || 0, myStream, uploadedAvatarBase64, true, isHost);
+                const myRoleIsHost = isHost;
+                addOrUpdatePlayerCard(myId, getMyName(), players[myId]?.score || 0, myStream, uploadedAvatarBase64, true, myRoleIsHost);
             } catch (err) { console.warn(err); }
         }
 
@@ -875,6 +882,7 @@
         }
 
         function openEditor() {
+            if (!isHost) return;
             const container = document.getElementById('editorContent');
             container.innerHTML = '';
 
@@ -927,6 +935,7 @@
         function closeEditor() { document.getElementById('editorModal').style.display = 'none'; }
 
         function saveEditorData() {
+            if (!isHost) return;
             gameData.forEach((cat, cIdx) => {
                 const catInput = document.getElementById(`edit-cat-${cIdx}`);
                 if (catInput) cat.category = catInput.value;
@@ -943,7 +952,7 @@
 
             initBoard();
             closeEditor();
-            if (isHost) broadcast({ type: 'UPDATE_GAMEDATA', gameData });
+            broadcast({ type: 'UPDATE_GAMEDATA', gameData });
         }
 
         function generateRoomCode() {
@@ -967,6 +976,7 @@
             actualRoomId = generateRoomCode();
             isHost = true;
             updateLayoutMode();
+            initBoard();
             peer = new Peer(actualRoomId);
 
             peer.on('open', id => {
@@ -983,6 +993,7 @@
                 connections.push(conn);
                 conn.on('data', data => handleDataFromClient(data, conn));
                 conn.send({ type: 'UPDATE_GAMEDATA', gameData });
+                conn.send({ type: 'STATE_UPDATE', players });
             });
             peer.on('call', call => {
                 call.answer(myStream);
@@ -998,6 +1009,7 @@
 
             isHost = false;
             updateLayoutMode();
+            initBoard();
 
             peer = new Peer();
             peer.on('open', () => {
@@ -1010,7 +1022,9 @@
                 peer.on('call', call => {
                     call.answer(myStream);
                     call.on('stream', remoteStream => {
-                        addOrUpdatePlayerCard(call.peer, "Mitspieler", 0, remoteStream, null, false, false);
+                        // Finde heraus, ob der Anrufer der Host ist
+                        const isCallerHost = players[call.peer]?.isHost || false;
+                        addOrUpdatePlayerCard(call.peer, players[call.peer]?.name || (isCallerHost ? "Host" : "Mitspieler"), 0, remoteStream, players[call.peer]?.avatar, false, isCallerHost);
                     });
                 });
                 peer.call(hostId, myStream);
@@ -1134,12 +1148,9 @@
         }
 
         function resetGame() {
-            if (isHost) {
-                executeSoftResetLocally();
-                broadcast({ type: 'RESET_GAME' });
-            } else {
-                alert("Nur der Host kann das Spiel zurücksetzen!");
-            }
+            if (!isHost) return;
+            executeSoftResetLocally();
+            broadcast({ type: 'RESET_GAME' });
         }
 
         function executeSoftResetLocally() {
@@ -1153,7 +1164,6 @@
         }
 
         function getPlayerIdsInOrder() {
-            // Filtert den Host heraus, sodass nur echte Mitspieler in Reihenfolge (von links nach rechts) übrig bleiben
             return Object.keys(players).filter(id => !players[id].isHost);
         }
 
@@ -1175,7 +1185,7 @@
         }
 
         function rateAnswer(isCorrect) {
-            if (!currentAnsweringPlayer) return;
+            if (!isHost || !currentAnsweringPlayer) return;
             
             if (isCorrect) {
                 playSound('correct');
@@ -1187,16 +1197,13 @@
                 players[currentAnsweringPlayer].score -= activeCard.points;
                 broadcastState();
                 
-                // Nächster Spieler in der Reihenfolge von links nach rechts
                 const playingList = getPlayerIdsInOrder();
                 const currentIndex = playingList.indexOf(currentAnsweringPlayer);
                 
                 if (currentIndex !== -1 && currentIndex < playingList.length - 1) {
-                    // Es gibt noch einen nächsten Spieler von links nach rechts!
                     const nextPlayerId = playingList[currentIndex + 1];
                     broadcast({ type: 'SET_TURN', playerId: nextPlayerId });
                 } else {
-                    // Letzter Spieler war dran -> Buzzer für alle freigeben
                     const failedId = currentAnsweringPlayer;
                     broadcast({ type: 'ENABLE_BUZZER', failedPlayerId: failedId });
                 }
@@ -1210,6 +1217,7 @@
         }
 
         function toggleAnswer() {
+            if (!isHost) return;
             const a = document.getElementById('modalAnswerContainer');
             a.style.display = a.style.display === 'none' ? 'block' : 'none';
         }
@@ -1219,54 +1227,52 @@
         }
 
         function addOrUpdatePlayerCard(id, name, score, stream, avatar = null, isMe = false, isPlayerHost = false) {
-            ['playersGridSidebar', 'playersGridBottom'].forEach(containerId => {
-                const gridEl = document.getElementById(containerId);
-                if (!gridEl) return;
+            // Bestimme, in welches Grid die Karte gehört: Host immer in die Sidebar, Mitspieler nach unten
+            const containerId = isPlayerHost ? 'hostSidebarContainer' : 'playersGridBottom';
+            const gridEl = document.getElementById(containerId);
+            if (!gridEl) return;
 
-                if (containerId === 'playersGridBottom' && isPlayerHost) return;
+            let container = gridEl.querySelector('#player-card-' + id);
+            if (!container) {
+                container = document.createElement('div');
+                container.className = 'player-card' + (isPlayerHost ? ' host-card' : '');
+                container.id = 'player-card-' + id;
+                
+                const video = document.createElement('video');
+                video.className = 'video-box';
+                video.autoplay = true;
+                video.playsInline = true;
+                if (isMe) video.muted = true;
+                
+                const info = document.createElement('div');
+                info.className = 'player-info';
+                
+                const defaultAvatar = 'https://api.dicebear.com/7.x/bottts/svg?seed=' + id;
+                info.innerHTML = `
+                    <div class="player-details">
+                        <img class="avatar-img" src="${avatar || defaultAvatar}" alt="Avatar">
+                        <span class="p-name">${name} ${isPlayerHost ? '👑' : ''}</span>
+                    </div>
+                    <span class="p-score">${score} Pkt.</span>
+                `;
+                
+                container.appendChild(video);
+                container.appendChild(info);
+                gridEl.appendChild(container);
+            }
 
-                let container = gridEl.querySelector('#player-' + containerId.replace('Grid', '') + '-' + id);
-                if (!container) {
-                    container = document.createElement('div');
-                    container.className = 'player-card' + (isPlayerHost ? ' host-card' : '');
-                    container.id = 'player-' + containerId.replace('Grid', '') + '-' + id;
-                    
-                    const video = document.createElement('video');
-                    video.className = 'video-box';
-                    video.autoplay = true;
-                    video.playsInline = true;
-                    if (isMe) video.muted = true;
-                    
-                    const info = document.createElement('div');
-                    info.className = 'player-info';
-                    
-                    const defaultAvatar = 'https://api.dicebear.com/7.x/bottts/svg?seed=' + id;
-                    info.innerHTML = `
-                        <div class="player-details">
-                            <img class="avatar-img" src="${avatar || defaultAvatar}" alt="Avatar">
-                            <span class="p-name">${name} ${isPlayerHost ? '👑' : ''}</span>
-                        </div>
-                        <span class="p-score">${score} Pkt.</span>
-                    `;
-                    
-                    container.appendChild(video);
-                    container.appendChild(info);
-                    gridEl.appendChild(container);
-                }
+            if (stream) {
+                const v = container.querySelector('video');
+                if (v.srcObject !== stream) v.srcObject = stream;
+            }
 
-                if (stream) {
-                    const v = container.querySelector('video');
-                    if (v.srcObject !== stream) v.srcObject = stream;
-                }
-
-                container.querySelector('.p-name').innerText = name + (isPlayerHost ? ' 👑' : '');
-                container.querySelector('.p-score').innerText = score + " Pkt.";
-                if (avatar) container.querySelector('.avatar-img').src = avatar;
-            });
+            container.querySelector('.p-name').innerText = name + (isPlayerHost ? ' 👑' : '');
+            container.querySelector('.p-score').innerText = score + " Pkt.";
+            if (avatar) container.querySelector('.avatar-img').src = avatar;
         }
 
         function updatePlayerListUI() {
-            document.getElementById('playersGridSidebar').innerHTML = '';
+            document.getElementById('hostSidebarContainer').innerHTML = '';
             document.getElementById('playersGridBottom').innerHTML = '';
 
             Object.keys(players).forEach(pId => {
@@ -1280,7 +1286,7 @@
             document.querySelectorAll('.player-card').forEach(c => c.classList.remove('active-turn', 'buzzed'));
             if (pId) {
                 document.querySelectorAll('.player-card').forEach(c => {
-                    if (c.id.endsWith('-' + pId)) c.classList.add(buzzed ? 'buzzed' : 'active-turn');
+                    if (c.id === 'player-card-' + pId) c.classList.add(buzzed ? 'buzzed' : 'active-turn');
                 });
             }
         }
