@@ -77,6 +77,7 @@
             padding: 12px 28px; border-radius: 50px;
             box-shadow: 0 0 25px rgba(255, 0, 127, 0.6); cursor: pointer; animation: pulse 1.5s infinite alternate;
         }
+        .btn-buzzer:disabled { opacity: 0.4; cursor: not-allowed; animation: none; filter: grayscale(1); }
 
         @keyframes pulse {
             0% { box-shadow: 0 0 15px rgba(255,0,127,0.5); }
@@ -109,10 +110,11 @@
             cursor: pointer; transition: all 0.25s ease; min-height: 85px; position: relative;
         }
 
-        .point-card:hover:not(.played) {
+        .point-card:hover:not(.played):not(.disabled) {
             transform: scale(1.03); border-color: var(--accent-blue);
             box-shadow: 0 0 20px rgba(0, 243, 255, 0.4); background: rgba(0, 243, 255, 0.15);
         }
+        .point-card.disabled { cursor: not-allowed; }
 
         .point-card.played { opacity: 0.25; border-color: transparent; cursor: default; background: rgba(5, 5, 15, 0.5); }
         .media-icon-badge { position: absolute; top: 4px; right: 4px; font-size: 0.75rem; opacity: 0.8; }
@@ -121,21 +123,19 @@
             display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 12px; margin-top: auto;
         }
 
-        /* NEUES SPIELER-CARD DESIGN MIT NEBENENANDER-LAYOUT */
         .player-card {
             background: var(--panel-bg); border: 1px solid rgba(255, 0, 127, 0.3); border-radius: 10px;
             padding: 10px 12px; display: flex; align-items: center; gap: 12px; backdrop-filter: blur(10px);
             box-shadow: 0 4px 15px rgba(0,0,0,0.3);
         }
 
-        /* GLOW-VIERECK FÜR DAS LOGO / PROFILBILD */
         .avatar-glow-box {
-            width: 48px; height: 48px; min-width: 48px; min-height: 48px;
+            width: 52px; height: 52px; min-width: 52px; min-height: 52px;
             border-radius: 8px; border: 1px solid var(--accent-blue);
             background: rgba(0, 243, 255, 0.08); box-shadow: 0 0 10px rgba(0, 243, 255, 0.3);
-            display: flex; align-items: center; justify-content: center; overflow: hidden;
+            display: flex; align-items: center; justify-content: center; overflow: hidden; position: relative;
         }
-        .avatar-glow-box img { width: 100%; height: 100%; object-fit: cover; }
+        .avatar-glow-box img, .avatar-glow-box video { width: 100%; height: 100%; object-fit: cover; }
         .avatar-glow-box .emoji { font-size: 1.6rem; }
 
         .player-info { display: flex; flex-direction: column; flex-grow: 1; }
@@ -182,6 +182,9 @@
         .avatar-preview { width: 50px; height: 50px; border-radius: 8px; object-fit: cover; border: 1px solid var(--accent-blue); display: none; margin-top: 5px; }
 
         .close-modal-btn { position: absolute; top: 15px; right: 15px; background: transparent; border: none; color: var(--text-muted); font-size: 1.5rem; cursor: pointer; }
+        
+        .host-only { display: inline-flex; }
+        .guest-hide { display: none !important; }
     </style>
 </head>
 <body>
@@ -192,13 +195,14 @@
         <header>
             <h1>Jeopardy <span style="font-size:0.7em; color:var(--accent-pink);">Galaxy</span></h1>
             <div class="controls-group">
-                <button class="btn btn-yellow" onclick="restartGame()">🔄 Neustart</button>
+                <button class="btn btn-yellow host-only-control" onclick="restartGame()">🔄 Neustart</button>
+                <button class="btn btn-pink" onclick="toggleWebcam()">🎥 Cam / Mic</button>
                 <div id="roomBadge" class="room-badge" style="display:none;">
                     <span>Raum:</span>
                     <strong id="roomCodeDisplay" style="color:#fff;">-</strong>
                 </div>
                 <button class="btn btn-green" onclick="openLobbyModal()">🎮 Multiplayer</button>
-                <button class="btn" onclick="openEditor()">⚙️ Editor & Medien</button>
+                <button class="btn host-only-control" onclick="openEditor()">⚙️ Editor & Medien</button>
             </div>
         </header>
 
@@ -209,14 +213,14 @@
     <!-- Question Modal -->
     <div class="modal-overlay" id="questionModal">
         <div class="modal-card">
-            <button class="close-modal-btn" onclick="closeQuestionModal()">&times;</button>
+            <button class="close-modal-btn host-only-control" onclick="closeQuestionModal()">&times;</button>
             <div class="modal-category" id="modalCat">Kategorie</div>
             <div class="modal-points" id="modalPoints">400</div>
             
             <div class="modal-content-box" id="modalQuestionText">Fragetext</div>
             <div class="media-container" id="modalQuestionMedia"></div>
 
-            <button class="btn btn-buzzer" style="margin:10px 0;" onclick="triggerBuzzer()">🔔 BUZZER!</button>
+            <button class="btn btn-buzzer" id="mainBuzzerBtn" style="margin:10px 0;" onclick="triggerBuzzer()">🔔 BUZZER!</button>
 
             <div class="buzzer-queue-box">
                 <div class="buzzer-queue-title">⚡ Buzzer Reihenfolge:</div>
@@ -228,7 +232,7 @@
                 <div class="media-container" id="modalAnswerMedia"></div>
             </div>
 
-            <div class="modal-actions" style="gap:10px; margin-top:15px; flex-wrap:wrap; justify-content:center; display:flex;">
+            <div class="modal-actions host-only-control" style="gap:10px; margin-top:15px; flex-wrap:wrap; justify-content:center; display:flex;">
                 <button class="btn btn-pink" onclick="revealAnswer()">Lösung anzeigen</button>
                 <button class="btn btn-green" onclick="awardPointsToCurrent(true)">✓ Richtig (+Punkte) & Ende</button>
                 <button class="btn btn-pink" onclick="penaltyAndNextInQueue()">❌ Falsch (-50%) & Nächster</button>
@@ -312,6 +316,7 @@
         let connections = [];
         let isHost = true;
         let activeQuestion = null;
+        let localStream = null;
 
         const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
 
@@ -360,8 +365,33 @@
         window.addEventListener('resize', initStarfield);
         initStarfield(); animateStarfield();
 
+        function updateRoleUI() {
+            document.querySelectorAll('.host-only-control').forEach(el => {
+                if (isHost) el.classList.remove('guest-hide');
+                else el.classList.add('guest-hide');
+            });
+        }
+
+        async function toggleWebcam() {
+            if (localStream) {
+                localStream.getTracks().forEach(track => track.stop());
+                localStream = null;
+                alert("Kamera und Mikrofon ausgeschaltet.");
+                renderPlayers();
+                return;
+            }
+            try {
+                localStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+                renderPlayers();
+                alert("Kamera & Mikrofon gestartet!");
+            } catch (err) {
+                alert("Kamera/Mikrofon konnte nicht aktiviert werden: " + err.message);
+            }
+        }
+
         function restartGame() {
-            if (confirm("Möchtest du das aktuelle Spiel neustarten? (Punkte werden auf 0 gesetzt, Karten wieder freigeschaltet)")) {
+            if (!isHost) return;
+            if (confirm("Möchtest du das aktuelle Spiel neustarten?")) {
                 gameData.forEach(cat => cat.questions.forEach(q => q.played = false));
                 players.forEach(p => p.score = 0);
                 saveDataToStorage(); renderBoard(); renderPlayers();
@@ -385,25 +415,34 @@
                 for (let col = 0; col < 5; col++) {
                     const qData = gameData[col].questions[row];
                     const card = document.createElement('div');
-                    card.className = `point-card ${qData.played ? 'played' : ''}`;
+                    card.className = `point-card ${qData.played ? 'played' : ''} ${!isHost ? 'disabled' : ''}`;
                     let mediaIcon = '';
                     if (qData.qAudio || qData.aAudio) mediaIcon += ' 🎶';
                     if (qData.qImage || qData.aImage) mediaIcon += ' 🖼️';
                     card.innerHTML = `${qData.points} ${mediaIcon ? `<span class="media-icon-badge">${mediaIcon}</span>` : ''}`;
-                    if (!qData.played) card.onclick = () => openQuestion(col, row);
+                    if (!qData.played && isHost) card.onclick = () => openQuestion(col, row);
                     board.appendChild(card);
                 }
             }
         }
 
-        // GLOW-BOX AVATAR GENERATOR (HILFSFUNKTION)
-        function createAvatarBoxHtml(avatarSrc, size = '48px') {
-            const isImage = avatarSrc && avatarSrc.startsWith('data:image');
-            const inner = isImage 
-                ? `<img src="${avatarSrc}">` 
-                : `<span class="emoji">${avatarSrc || '👨‍🚀'}</span>`;
+        function createAvatarBoxHtml(p, size = '52px') {
+            const isMe = p.id === myId;
+            let inner = '';
             
-            const customStyle = size !== '48px' ? `style="width:${size}; height:${size}; min-width:${size}; min-height:${size};"` : '';
+            if (isMe && localStream) {
+                inner = `<video id="localVideoElem" autoplay playsinline muted></video>`;
+                setTimeout(() => {
+                    const v = document.getElementById('localVideoElem');
+                    if (v && v.srcObject !== localStream) v.srcObject = localStream;
+                }, 50);
+            } else if (p.avatar && p.avatar.startsWith('data:image')) {
+                inner = `<img src="${p.avatar}">`;
+            } else {
+                inner = `<span class="emoji">${p.avatar || '👨‍🚀'}</span>`;
+            }
+
+            const customStyle = `style="width:${size}; height:${size}; min-width:${size}; min-height:${size};"`;
             return `<div class="avatar-glow-box" ${customStyle}>${inner}</div>`;
         }
 
@@ -412,21 +451,24 @@
             players.forEach(p => {
                 const card = document.createElement('div'); card.className = 'player-card';
                 card.innerHTML = `
-                    ${createAvatarBoxHtml(p.avatar)}
+                    ${createAvatarBoxHtml(p)}
                     <div class="player-info">
                         <div class="player-name">${p.name}</div>
                         <div class="player-score">${p.score} Pkt.</div>
                     </div>
+                    ${isHost ? `
                     <div class="score-controls">
                         <button class="score-btn" onclick="updateScore('${p.id}', 100)">+</button>
                         <button class="score-btn" onclick="updateScore('${p.id}', -100)">-</button>
-                    </div>
+                    </div>` : ''}
                 `;
                 row.appendChild(card);
             });
+            updateRoleUI();
         }
 
         function updateScore(playerId, amount) {
+            if (!isHost) return;
             const p = players.find(x => x.id === playerId);
             if (p) { p.score += amount; renderPlayers(); broadcast({ type: 'SCORE_UPDATE', players }); }
         }
@@ -448,29 +490,47 @@
             if (q.aAudio) aMediaBox.innerHTML += `<audio id="ansAudio" src="${q.aAudio}" controls></audio>`;
 
             document.getElementById('modalAnswerBox').classList.remove('active');
-            renderQueue(); document.getElementById('questionModal').classList.add('active');
-            broadcast({ type: 'OPEN_QUESTION', col, row });
+            renderQueue(); 
+            document.getElementById('questionModal').classList.add('active');
+            
+            if (isHost) broadcast({ type: 'OPEN_QUESTION', col, row });
         }
 
         function triggerBuzzer() {
-            playSound('buzz');
             const me = players.find(p => p.id === myId) || { id: myId, name: 'Anonym', avatar: myAvatar };
+            
+            // Wenn bereits jemand an der Reihe ist, ist der Buzzer gesperrt
+            if (buzzerQueue.length > 0) return;
+
             if (!buzzerQueue.some(item => item.id === me.id)) {
+                playSound('buzz');
                 buzzerQueue.push({ id: me.id, name: me.name, avatar: me.avatar });
-                renderQueue(); broadcast({ type: 'BUZZ_IN', user: me });
+                renderQueue(); 
+                
+                if (isHost) broadcast({ type: 'QUEUE_UPDATE', buzzerQueue });
+                else broadcast({ type: 'BUZZ_IN', user: me });
             }
         }
 
         function renderQueue() {
             const container = document.getElementById('queueListDisplay');
-            if (buzzerQueue.length === 0) { container.innerHTML = '<i>Noch niemand gebuzzert...</i>'; return; }
+            const bBtn = document.getElementById('mainBuzzerBtn');
+            
+            const myTurnOrHasBuzzed = buzzerQueue.some(x => x.id === myId);
+            bBtn.disabled = buzzerQueue.length > 0; // Gesperrt, solange mindestens ein Spieler dran ist
+
+            if (buzzerQueue.length === 0) { 
+                container.innerHTML = '<i>Noch niemand gebuzzert... Freigegeben!</i>'; 
+                return; 
+            }
+
             container.innerHTML = '';
             buzzerQueue.forEach((item, index) => {
                 const row = document.createElement('div');
                 row.className = `queue-item ${index === 0 ? 'active-turn' : ''}`;
                 row.innerHTML = `
                     <div class="queue-user-info">
-                        ${createAvatarBoxHtml(item.avatar, '32px')}
+                        ${createAvatarBoxHtml(item, '32px')}
                         <span>#${index + 1} <strong>${item.name}</strong></span>
                     </div>
                     <span>${index === 0 ? '👉 Am Zug' : 'Wartet...'}</span>
@@ -480,34 +540,44 @@
         }
 
         function penaltyAndNextInQueue() {
+            if (!isHost) return;
             if (buzzerQueue.length === 0) return alert("Kein Spieler in der Warteschlange!");
+            
             const activeUser = buzzerQueue[0];
             const qPts = gameData[activeQuestion.col].questions[activeQuestion.row].points;
-            updateScore(activeUser.id, -Math.round(qPts / 2)); playSound('wrong');
-            buzzerQueue.shift(); renderQueue(); broadcast({ type: 'QUEUE_UPDATE', buzzerQueue });
+            
+            updateScore(activeUser.id, -Math.round(qPts / 2)); 
+            playSound('wrong');
+            
+            buzzerQueue.shift(); // Nächster ist an der Reihe oder Freigabe
+            renderQueue(); 
+            broadcast({ type: 'QUEUE_UPDATE', buzzerQueue });
         }
 
         function awardPointsToCurrent(isCorrect) {
-            if (buzzerQueue.length === 0) { closeQuestionModal(); return; }
-            const activeUser = buzzerQueue[0];
-            const qPts = gameData[activeQuestion.col].questions[activeQuestion.row].points;
-            if (isCorrect) { updateScore(activeUser.id, qPts); playSound('correct'); }
+            if (!isHost) return;
+            if (buzzerQueue.length > 0) {
+                const activeUser = buzzerQueue[0];
+                const qPts = gameData[activeQuestion.col].questions[activeQuestion.row].points;
+                if (isCorrect) { updateScore(activeUser.id, qPts); playSound('correct'); }
+            }
             closeQuestionModal();
         }
 
         function revealAnswer() {
+            if (!isHost) return;
             document.getElementById('modalAnswerBox').classList.add('active');
             const ansAudio = document.getElementById('ansAudio'); if (ansAudio) ansAudio.play();
             broadcast({ type: 'REVEAL_ANSWER' });
         }
 
         function closeQuestionModal() {
-            if (activeQuestion) {
+            if (isHost && activeQuestion) {
                 gameData[activeQuestion.col].questions[activeQuestion.row].played = true;
                 saveDataToStorage(); renderBoard(); activeQuestion = null;
             }
             document.getElementById('questionModal').classList.remove('active');
-            broadcast({ type: 'CLOSE_QUESTION' });
+            if (isHost) broadcast({ type: 'CLOSE_QUESTION' });
         }
 
         function handleAvatarUpload(event) {
@@ -534,6 +604,7 @@
 
         // --- EDITOR & IMPORT / EXPORT / RESET ---
         function openEditor() {
+            if (!isHost) return;
             const list = document.getElementById('editorList'); list.innerHTML = '';
             gameData.forEach((cat, cIdx) => {
                 const block = document.createElement('div'); block.className = 'editor-cat-block';
@@ -608,10 +679,11 @@
                 });
             });
             saveDataToStorage(); renderBoard(); closeEditorModal();
+            broadcast({ type: 'SYNC_STATE', players, gameData });
         }
 
         function resetToDefaultData() {
-            if (confirm("Möchtest du wirklich ALLE Fragen & Kategorien auf den Ursprungszustand zurücksetzen? Alle Anpassungen gehen verloren!")) {
+            if (confirm("Möchtest du wirklich ALLE Fragen & Kategorien auf den Ursprungszustand zurücksetzen?")) {
                 localStorage.removeItem('jeopardy_data');
                 gameData = JSON.parse(JSON.stringify(DEFAULT_DATA));
                 saveDataToStorage(); renderBoard(); openEditor();
@@ -652,7 +724,7 @@
             peer = new Peer(`jeopardy-room-${code}`);
             peer.on('open', id => {
                 myId = id; isHost = true; players = [{ id: myId, name: name, score: 0, avatar: myAvatar }];
-                renderPlayers();
+                renderPlayers(); renderBoard();
                 document.getElementById('roomBadge').style.display = 'flex';
                 document.getElementById('roomCodeDisplay').innerText = code;
                 closeLobbyModal();
@@ -672,7 +744,12 @@
                 myId = id; isHost = false;
                 const conn = peer.connect(`jeopardy-room-${code}`);
                 connections.push(conn);
-                conn.on('open', () => { conn.send({ type: 'JOIN', name, id, avatar: myAvatar }); closeLobbyModal(); });
+                conn.on('open', () => { 
+                    conn.send({ type: 'JOIN', name, id, avatar: myAvatar }); 
+                    closeLobbyModal(); 
+                    renderBoard();
+                    renderPlayers();
+                });
                 conn.on('data', data => handleNetworkMessage(data, conn));
             });
         }
@@ -687,18 +764,22 @@
                 players = data.players; gameData = data.gameData; renderBoard(); renderPlayers();
             } else if (data.type === 'SCORE_UPDATE') {
                 players = data.players; renderPlayers();
-            } else if (data.type === 'BUZZ_IN') {
-                if (!buzzerQueue.some(x => x.id === data.user.id)) {
-                    buzzerQueue.push(data.user); renderQueue(); playSound('buzz');
+            } else if (data.type === 'BUZZ_IN' && isHost) {
+                if (buzzerQueue.length === 0) {
+                    buzzerQueue.push(data.user); 
+                    renderQueue(); 
+                    playSound('buzz');
+                    broadcast({ type: 'QUEUE_UPDATE', buzzerQueue });
                 }
             } else if (data.type === 'QUEUE_UPDATE') {
                 buzzerQueue = data.buzzerQueue; renderQueue();
             } else if (data.type === 'OPEN_QUESTION') {
                 openQuestion(data.col, data.row);
             } else if (data.type === 'REVEAL_ANSWER') {
-                revealAnswer();
+                document.getElementById('modalAnswerBox').classList.add('active');
             } else if (data.type === 'CLOSE_QUESTION') {
-                closeQuestionModal();
+                document.getElementById('questionModal').classList.remove('active');
+                renderBoard();
             } else if (data.type === 'RESTART') {
                 gameData = data.gameData; players = data.players; renderBoard(); renderPlayers();
             }
