@@ -1067,7 +1067,7 @@
             });
         }
 
-       function joinGame() {
+      function joinGame() {
             const hostId = document.getElementById('joinId').value.trim().toUpperCase();
             if (!hostId) return alert("Bitte Code eingeben!");
 
@@ -1077,10 +1077,9 @@
 
             peer = new Peer();
             peer.on('open', (id) => {
+                // Sich selbst direkt lokal hinzufügen, damit man sich sofort selbst sieht
                 players[id] = { name: getMyName(), score: 0, avatar: uploadedAvatarBase64, isHost: false };
-                if (myStream) {
-                    addOrUpdatePlayerCard(id, getMyName(), 0, myStream, uploadedAvatarBase64, true, false);
-                }
+                updatePlayerListUI();
 
                 hostConn = peer.connect(hostId);
                 hostConn.on('open', () => {
@@ -1093,13 +1092,13 @@
                     call.answer(myStream);
                     call.on('stream', remoteStream => {
                         const isCallerHost = players[call.peer]?.isHost || false;
-                        addOrUpdatePlayerCard(call.peer, players[call.peer]?.name || (isCallerHost ? "Host" : "Mitspieler"), 0, remoteStream, players[call.peer]?.avatar, false, isCallerHost);
+                        addOrUpdatePlayerCard(call.peer, players[call.peer]?.name || (isCallerHost ? "Host" : "Mitspieler"), players[call.peer]?.score || 0, remoteStream, players[call.peer]?.avatar, false, isCallerHost);
                     });
                 });
 
                 const call = peer.call(hostId, myStream);
                 call.on('stream', remoteStream => {
-                    addOrUpdatePlayerCard(hostId, players[hostId]?.name || "Host", 0, remoteStream, players[hostId]?.avatar, false, true);
+                    addOrUpdatePlayerCard(hostId, players[hostId]?.name || "Host", players[hostId]?.score || 0, remoteStream, players[hostId]?.avatar, false, true);
                 });
             });
         }
