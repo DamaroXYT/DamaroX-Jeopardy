@@ -1083,6 +1083,7 @@
                     alert("Mit Raum verbunden!");
                 });
                 hostConn.on('data', data => handleDataFromHost(data));
+                
                 peer.on('call', call => {
                     call.answer(myStream);
                     call.on('stream', remoteStream => {
@@ -1090,7 +1091,11 @@
                         addOrUpdatePlayerCard(call.peer, players[call.peer]?.name || (isCallerHost ? "Host" : "Mitspieler"), 0, remoteStream, players[call.peer]?.avatar, false, isCallerHost);
                     });
                 });
-                peer.call(hostId, myStream);
+
+                const call = peer.call(hostId, myStream);
+                call.on('stream', remoteStream => {
+                    addOrUpdatePlayerCard(hostId, players[hostId]?.name || "Host", 0, remoteStream, players[hostId]?.avatar, false, true);
+                });
             });
         }
 
