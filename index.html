@@ -228,7 +228,6 @@
             flex-wrap: wrap;
         }
 
-        /* Neue stylische Player Card mit Full-Cover Video */
         .player-card {
             background: #000;
             border: 1px solid rgba(0, 240, 255, 0.3);
@@ -264,7 +263,6 @@
             z-index: 1;
         }
 
-        /* Oben Links Overlay für Avatar & Name */
         .player-overlay-top {
             position: absolute;
             top: 8px;
@@ -299,7 +297,6 @@
             color: #fff;
         }
 
-        /* Unten Mitte Overlay für Punkte im abgerundeten Rechteck */
         .player-overlay-bottom {
             position: absolute;
             bottom: 8px;
@@ -328,7 +325,6 @@
             display: none !important;
         }
 
-        /* Plus / Minus Punktekontrolle für den Host */
         .score-adjuster {
             display: flex;
             gap: 3px;
@@ -750,6 +746,7 @@
         let hostConn = null;
         let isHost = false;
         let myStream = null;
+        let remoteStreams = {};
         let uploadedAvatarBase64 = null;
         let players = {};
         let activeCard = null;
@@ -1055,6 +1052,10 @@
             peer.on('error', () => { createLobby(); });
             peer.on('connection', conn => {
                 connections.push(conn);
+                conn.on('open', () => {
+                    const peerIds = Object.keys(players);
+                    conn.send({ type: 'ROOM_PEERS', peers: peerIds });
+                });
                 conn.on('data', data => handleDataFromClient(data, conn));
                 conn.send({ type: 'UPDATE_GAMEDATA', gameData });
                 conn.send({ type: 'STATE_UPDATE', players });
@@ -1062,12 +1063,13 @@
             peer.on('call', call => {
                 call.answer(myStream);
                 call.on('stream', remoteStream => {
-                    addOrUpdatePlayerCard(call.peer, players[call.peer]?.name || "Spieler", players[call.peer]?.score || 0, remoteStream, players[call.peer]?.avatar, false, players[call.peer]?.isHost);
+                    const isCallerHost = players[call.peer]?.isHost || false;
+                    addOrUpdatePlayerCard(call.peer, players[call.peer]?.name || (isCallerHost ? "Host" : "Mitspieler"), players[call.peer]?.score || 0, remoteStream, players[call.peer]?.avatar, false, isCallerHost);
                 });
             });
         }
 
-      function joinGame() {
+        function joinGame() {
             const hostId = document.getElementById('joinId').value.trim().toUpperCase();
             if (!hostId) return alert("Bitte Code eingeben!");
 
@@ -1077,7 +1079,6 @@
 
             peer = new Peer();
             peer.on('open', (id) => {
-                // Sich selbst direkt lokal hinzufügen, damit man sich sofort selbst sieht
                 players[id] = { name: getMyName(), score: 0, avatar: uploadedAvatarBase64, isHost: false };
                 updatePlayerListUI();
 
@@ -1102,7 +1103,7 @@
                 });
             });
         }
-        
+
         function handleDataFromClient(data, conn) {
             if (data.type === 'JOIN') {
                 players[conn.peer] = { name: data.name, score: 0, avatar: data.avatar, isHost: false };
@@ -1158,6 +1159,17 @@
             if (data.type === 'STATE_UPDATE') {
                 players = data.players;
                 updatePlayerListUI();
+            }
+            if (data.type === 'ROOM_PEERS') {
+                data.peers.forEach(otherPeerId => {
+                    if (otherPeerId !== peer.id && myStream) {
+                        const call = peer.call(otherPeerId, myStream);
+                        call.on('stream', remoteStream => {
+                            const isH = players[otherPeerId]?.isHost || false;
+                            addOrUpdatePlayerCard(otherPeerId, players[otherPeerId]?.name || (isH ? "Host" : "Mitspieler"), players[otherPeerId]?.score || 0, remoteStream, players[otherPeerId]?.avatar, false, isH);
+                        });
+                    }
+                });
             }
             if (data.type === 'OPEN_QUESTION') {
                 playSound('click');
@@ -1315,7 +1327,7 @@
             if (isHost) broadcast({ type: 'CLOSE_QUESTION' });
         }
 
-      function addOrUpdatePlayerCard(id, name, score, stream, avatar = null, isMe = false, isPlayerHost = false) {
+        function addOrUpdatePlayerCard(id, name, score, stream, avatar = null, isMe = false, isPlayerHost = false) {
             const containerId = isPlayerHost ? 'hostSidebarContainer' : 'playersGridBottom';
             const gridEl = document.getElementById(containerId);
             if (!gridEl) return;
