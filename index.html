@@ -1,0 +1,711 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Jeopardy - Galaxy Edition</title>
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Inter:wght@300;400;600;800&display=swap" rel="stylesheet">
+    <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
+    <style>
+        :root {
+            --bg-dark: #050510;
+            --panel-bg: rgba(15, 15, 35, 0.75);
+            --border-glow: #00f3ff;
+            --accent-pink: #ff007f;
+            --accent-purple: #9d00ff;
+            --accent-blue: #00f3ff;
+            --accent-green: #00ff88;
+            --accent-yellow: #ffcc00;
+            --text-main: #ffffff;
+            --text-muted: #8a8ab0;
+            --gold: #ffd700;
+        }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; user-select: none; }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: var(--bg-dark);
+            color: var(--text-main);
+            min-height: 100vh;
+            overflow-x: hidden;
+            display: flex; flex-direction: column; position: relative;
+        }
+
+        #starfield { position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; z-index: 0; pointer-events: none; }
+
+        .app-container {
+            position: relative; z-index: 1; display: flex; flex-direction: column;
+            min-height: 100vh; padding: 15px; max-width: 1600px; margin: 0 auto; width: 100%;
+        }
+
+        header {
+            display: flex; justify-content: space-between; align-items: center;
+            padding: 10px 20px; background: var(--panel-bg);
+            border: 1px solid rgba(0, 243, 255, 0.3); border-radius: 12px;
+            backdrop-filter: blur(10px); margin-bottom: 15px; box-shadow: 0 0 20px rgba(0, 243, 255, 0.15);
+        }
+
+        h1 {
+            font-family: 'Orbitron', sans-serif; font-size: 1.6rem; font-weight: 900; letter-spacing: 2px;
+            background: linear-gradient(90deg, #00f3ff, #ff007f);
+            -webkit-background-clip: text; -webkit-text-fill-color: transparent; text-transform: uppercase;
+        }
+
+        .controls-group { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+
+        .btn {
+            background: rgba(0, 243, 255, 0.1); border: 1px solid var(--accent-blue);
+            color: var(--text-main); padding: 8px 16px; border-radius: 6px;
+            font-family: 'Orbitron', sans-serif; font-size: 0.8rem; cursor: pointer;
+            transition: all 0.2s ease; display: flex; align-items: center; gap: 6px;
+        }
+        .btn:hover { background: var(--accent-blue); color: #000; box-shadow: 0 0 15px var(--accent-blue); }
+
+        .btn-pink { border-color: var(--accent-pink); background: rgba(255, 0, 127, 0.1); }
+        .btn-pink:hover { background: var(--accent-pink); color: #fff; box-shadow: 0 0 15px var(--accent-pink); }
+
+        .btn-green { border-color: var(--accent-green); background: rgba(0, 255, 136, 0.1); }
+        .btn-green:hover { background: var(--accent-green); color: #000; box-shadow: 0 0 15px var(--accent-green); }
+
+        .btn-yellow { border-color: var(--accent-yellow); background: rgba(255, 204, 0, 0.1); color: var(--accent-yellow); }
+        .btn-yellow:hover { background: var(--accent-yellow); color: #000; box-shadow: 0 0 15px var(--accent-yellow); }
+
+        .btn-buzzer {
+            background: linear-gradient(135deg, #ff007f, #ffcc00);
+            border: none; color: #fff; font-size: 1.4rem; font-weight: 900;
+            padding: 12px 28px; border-radius: 50px;
+            box-shadow: 0 0 25px rgba(255, 0, 127, 0.6); cursor: pointer; animation: pulse 1.5s infinite alternate;
+        }
+
+        @keyframes pulse {
+            0% { box-shadow: 0 0 15px rgba(255,0,127,0.5); }
+            100% { box-shadow: 0 0 30px rgba(255,204,0,0.9); }
+        }
+
+        .room-badge {
+            background: rgba(157, 0, 255, 0.2); border: 1px solid var(--accent-purple);
+            padding: 6px 12px; border-radius: 6px; font-family: 'Orbitron', sans-serif;
+            font-size: 0.85rem; color: #d896ff; display: flex; align-items: center; gap: 8px;
+        }
+
+        .game-board {
+            display: grid; grid-template-columns: repeat(5, 1fr); gap: 10px; flex-grow: 1; margin-bottom: 15px;
+        }
+
+        .category-card {
+            background: var(--panel-bg); border: 1px solid rgba(255, 255, 255, 0.15);
+            border-radius: 8px; padding: 12px 8px; text-align: center;
+            font-family: 'Orbitron', sans-serif; font-weight: 700; font-size: 0.95rem;
+            color: #fff; display: flex; align-items: center; justify-content: center;
+            min-height: 60px; box-shadow: 0 4px 15px rgba(0,0,0,0.5);
+            background: linear-gradient(180deg, rgba(20,20,50,0.8) 0%, rgba(10,10,25,0.9) 100%);
+        }
+
+        .point-card {
+            background: var(--panel-bg); border: 1px solid rgba(0, 243, 255, 0.2);
+            border-radius: 8px; display: flex; flex-direction: column; align-items: center; justify-content: center;
+            font-family: 'Orbitron', sans-serif; font-size: 1.8rem; font-weight: 900; color: var(--accent-blue);
+            cursor: pointer; transition: all 0.25s ease; min-height: 85px; position: relative;
+        }
+
+        .point-card:hover:not(.played) {
+            transform: scale(1.03); border-color: var(--accent-blue);
+            box-shadow: 0 0 20px rgba(0, 243, 255, 0.4); background: rgba(0, 243, 255, 0.15);
+        }
+
+        .point-card.played { opacity: 0.25; border-color: transparent; cursor: default; background: rgba(5, 5, 15, 0.5); }
+        .media-icon-badge { position: absolute; top: 4px; right: 4px; font-size: 0.75rem; opacity: 0.8; }
+
+        .players-container {
+            display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 12px; margin-top: auto;
+        }
+
+        /* NEUES SPIELER-CARD DESIGN MIT NEBENENANDER-LAYOUT */
+        .player-card {
+            background: var(--panel-bg); border: 1px solid rgba(255, 0, 127, 0.3); border-radius: 10px;
+            padding: 10px 12px; display: flex; align-items: center; gap: 12px; backdrop-filter: blur(10px);
+            box-shadow: 0 4px 15px rgba(0,0,0,0.3);
+        }
+
+        /* GLOW-VIERECK FÜR DAS LOGO / PROFILBILD */
+        .avatar-glow-box {
+            width: 48px; height: 48px; min-width: 48px; min-height: 48px;
+            border-radius: 8px; border: 1px solid var(--accent-blue);
+            background: rgba(0, 243, 255, 0.08); box-shadow: 0 0 10px rgba(0, 243, 255, 0.3);
+            display: flex; align-items: center; justify-content: center; overflow: hidden;
+        }
+        .avatar-glow-box img { width: 100%; height: 100%; object-fit: cover; }
+        .avatar-glow-box .emoji { font-size: 1.6rem; }
+
+        .player-info { display: flex; flex-direction: column; flex-grow: 1; }
+        .player-name { font-family: 'Orbitron', sans-serif; font-size: 0.85rem; color: var(--text-main); font-weight: 700; margin-bottom: 2px; }
+        .player-score { font-family: 'Orbitron', sans-serif; font-size: 1.2rem; font-weight: 900; color: var(--gold); }
+
+        .score-controls { display: flex; gap: 4px; }
+        .score-btn { background: rgba(255, 255, 255, 0.08); border: 1px solid rgba(255, 255, 255, 0.2); color: #fff; width: 22px; height: 22px; border-radius: 4px; cursor: pointer; font-weight: bold; display: flex; align-items: center; justify-content: center; font-size: 0.8rem; }
+        .score-btn:hover { background: var(--accent-blue); color: #000; }
+
+        .modal-overlay { position: fixed; inset: 0; background: rgba(2, 2, 8, 0.85); backdrop-filter: blur(12px); z-index: 100; display: flex; align-items: center; justify-content: center; padding: 20px; opacity: 0; pointer-events: none; transition: opacity 0.3s ease; }
+        .modal-overlay.active { opacity: 1; pointer-events: auto; }
+
+        .modal-card { background: rgba(12, 12, 30, 0.95); border: 2px solid var(--accent-blue); border-radius: 16px; width: 100%; max-width: 800px; padding: 25px; box-shadow: 0 0 40px rgba(0, 243, 255, 0.25); display: flex; flex-direction: column; align-items: center; text-align: center; max-height: 90vh; overflow-y: auto; position: relative; }
+
+        .modal-category { font-family: 'Orbitron', sans-serif; color: var(--text-muted); font-size: 0.9rem; letter-spacing: 2px; }
+        .modal-points { font-family: 'Orbitron', sans-serif; color: var(--accent-blue); font-size: 2rem; font-weight: 900; margin-bottom: 15px; }
+        .modal-content-box { font-size: 1.4rem; font-weight: 600; line-height: 1.4; margin: 10px 0; width: 100%; }
+
+        .media-container { margin: 10px 0; max-width: 100%; }
+        .media-container img { max-height: 250px; max-width: 100%; border-radius: 8px; border: 1px solid rgba(255,255,255,0.2); object-fit: contain; }
+        .media-container audio { width: 100%; max-width: 400px; margin-top: 5px; }
+
+        .answer-box { margin-top: 15px; padding: 15px; background: rgba(0, 255, 136, 0.08); border: 1px dashed var(--accent-green); border-radius: 10px; color: var(--accent-green); font-size: 1.2rem; font-weight: 700; width: 100%; display: none; }
+        .answer-box.active { display: block; }
+
+        .buzzer-queue-box { margin: 12px 0; padding: 10px; background: rgba(255, 204, 0, 0.05); border: 1px solid var(--accent-yellow); border-radius: 8px; width: 100%; text-align: left; }
+        .buzzer-queue-title { font-family: 'Orbitron', sans-serif; font-size: 0.8rem; color: var(--accent-yellow); margin-bottom: 6px; }
+        
+        .queue-item { display: flex; justify-content: space-between; align-items: center; padding: 6px 10px; background: rgba(255,255,255,0.05); margin-bottom: 4px; border-radius: 6px; font-size: 0.9rem; }
+        .queue-item.active-turn { border: 1px solid var(--accent-green); background: rgba(0, 255, 136, 0.15); font-weight: bold; }
+        .queue-user-info { display: flex; align-items: center; gap: 10px; }
+
+        .editor-grid { display: flex; flex-direction: column; gap: 15px; width: 100%; text-align: left; max-height: 55vh; overflow-y: auto; padding-right: 5px; }
+        .editor-cat-block { background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.1); border-radius: 8px; padding: 12px; }
+        .editor-input-group { display: flex; flex-direction: column; gap: 4px; margin-bottom: 8px; }
+        .editor-input-group label { font-size: 0.75rem; color: var(--text-muted); font-family: 'Orbitron', sans-serif; }
+
+        .media-inputs { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 4px; }
+
+        input[type="text"], input[type="number"] { background: rgba(0,0,0,0.5); border: 1px solid rgba(0, 243, 255, 0.3); color: #fff; padding: 8px; border-radius: 4px; font-family: inherit; font-size: 0.85rem; width: 100%; }
+        input[type="file"] { font-size: 0.75rem; color: var(--text-muted); }
+
+        .avatar-preview { width: 50px; height: 50px; border-radius: 8px; object-fit: cover; border: 1px solid var(--accent-blue); display: none; margin-top: 5px; }
+
+        .close-modal-btn { position: absolute; top: 15px; right: 15px; background: transparent; border: none; color: var(--text-muted); font-size: 1.5rem; cursor: pointer; }
+    </style>
+</head>
+<body>
+
+    <canvas id="starfield"></canvas>
+
+    <div class="app-container">
+        <header>
+            <h1>Jeopardy <span style="font-size:0.7em; color:var(--accent-pink);">Galaxy</span></h1>
+            <div class="controls-group">
+                <button class="btn btn-yellow" onclick="restartGame()">🔄 Neustart</button>
+                <div id="roomBadge" class="room-badge" style="display:none;">
+                    <span>Raum:</span>
+                    <strong id="roomCodeDisplay" style="color:#fff;">-</strong>
+                </div>
+                <button class="btn btn-green" onclick="openLobbyModal()">🎮 Multiplayer</button>
+                <button class="btn" onclick="openEditor()">⚙️ Editor & Medien</button>
+            </div>
+        </header>
+
+        <main class="game-board" id="boardGrid"></main>
+        <footer class="players-container" id="playersRow"></footer>
+    </div>
+
+    <!-- Question Modal -->
+    <div class="modal-overlay" id="questionModal">
+        <div class="modal-card">
+            <button class="close-modal-btn" onclick="closeQuestionModal()">&times;</button>
+            <div class="modal-category" id="modalCat">Kategorie</div>
+            <div class="modal-points" id="modalPoints">400</div>
+            
+            <div class="modal-content-box" id="modalQuestionText">Fragetext</div>
+            <div class="media-container" id="modalQuestionMedia"></div>
+
+            <button class="btn btn-buzzer" style="margin:10px 0;" onclick="triggerBuzzer()">🔔 BUZZER!</button>
+
+            <div class="buzzer-queue-box">
+                <div class="buzzer-queue-title">⚡ Buzzer Reihenfolge:</div>
+                <div id="queueListDisplay"><i>Noch niemand gebuzzert...</i></div>
+            </div>
+
+            <div class="answer-box" id="modalAnswerBox">
+                <div id="modalAnswerText">Antworttext</div>
+                <div class="media-container" id="modalAnswerMedia"></div>
+            </div>
+
+            <div class="modal-actions" style="gap:10px; margin-top:15px; flex-wrap:wrap; justify-content:center; display:flex;">
+                <button class="btn btn-pink" onclick="revealAnswer()">Lösung anzeigen</button>
+                <button class="btn btn-green" onclick="awardPointsToCurrent(true)">✓ Richtig (+Punkte) & Ende</button>
+                <button class="btn btn-pink" onclick="penaltyAndNextInQueue()">❌ Falsch (-50%) & Nächster</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Editor Modal -->
+    <div class="modal-overlay" id="editorModal">
+        <div class="modal-card" style="max-width:900px;">
+            <button class="close-modal-btn" onclick="closeEditorModal()">&times;</button>
+            <h2 style="font-family:'Orbitron'; color:var(--accent-blue); margin-bottom:15px;">Fragen, Punkte & Medien Editor</h2>
+            
+            <div class="editor-grid" id="editorList"></div>
+
+            <div class="modal-actions" style="margin-top:15px; gap:8px; display:flex; flex-wrap:wrap; justify-content:space-between; width:100%;">
+                <div style="display:flex; gap:8px;">
+                    <button class="btn btn-yellow" onclick="resetToDefaultData()">🔄 Auf Standard zurücksetzen</button>
+                    <button class="btn" onclick="exportQuestionsJSON()">💾 JSON Export</button>
+                    <label class="btn" style="cursor:pointer; border-color:var(--accent-purple);">
+                        📥 JSON Import
+                        <input type="file" accept=".json" style="display:none;" onchange="importQuestionsJSON(event)">
+                    </label>
+                </div>
+                <button class="btn btn-green" onclick="saveEditorData()">Speichern</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Lobby Modal -->
+    <div class="modal-overlay" id="lobbyModal">
+        <div class="modal-card" style="max-width:500px;">
+            <button class="close-modal-btn" onclick="closeLobbyModal()">&times;</button>
+            <h2 style="font-family:'Orbitron'; color:var(--accent-purple); margin-bottom:15px;">Multiplayer</h2>
+            <div style="display:flex; flex-direction:column; gap:12px; width:100%; text-align:left;">
+                <div class="editor-input-group">
+                    <label>Dein Name</label>
+                    <input type="text" id="playerNameInput" placeholder="Name...">
+                </div>
+                
+                <div class="editor-input-group">
+                    <label>Profilbild (optional)</label>
+                    <input type="file" accept="image/*" onchange="handleAvatarUpload(event)">
+                    <img id="avatarPreviewImg" class="avatar-preview">
+                </div>
+
+                <button class="btn btn-green" style="justify-content:center; margin-top:5px;" onclick="hostGame()">Spiel erstellen (Host)</button>
+                <div style="text-align:center; color:var(--text-muted); font-size:0.8rem;">- ODER -</div>
+                <div class="editor-input-group">
+                    <label>Raum Code</label>
+                    <input type="text" id="joinCodeInput" placeholder="Code..." style="text-transform:uppercase;">
+                </div>
+                <button class="btn btn-pink" style="justify-content:center;" onclick="joinGame()">Beitreten</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const SPACE_EMOJIS = ['👨‍🚀', '👩‍🚀', '👾', '🛸', '🤖', '🚀', '🌟', '☄️'];
+        function getRandomEmoji() { return SPACE_EMOJIS[Math.floor(Math.random() * SPACE_EMOJIS.length)]; }
+
+        const DEFAULT_DATA = Array.from({ length: 5 }, (_, c) => ({
+            category: `Kategorie ${c + 1}`,
+            questions: [200, 400, 600, 800, 1000].map(pts => ({
+                points: pts,
+                question: `Frage für ${pts} Punkte in Kategorie ${c + 1}?`,
+                qImage: "", qAudio: "",
+                answer: `Antwort für ${pts} Punkte.`,
+                aImage: "", aAudio: "",
+                played: false
+            }))
+        }));
+
+        let gameData = JSON.parse(localStorage.getItem('jeopardy_data')) || DEFAULT_DATA;
+        let myId = 'local-user';
+        let myAvatar = getRandomEmoji();
+        let players = [{ id: myId, name: 'Spieler 1', score: 0, avatar: myAvatar }];
+        let buzzerQueue = [];
+
+        let peer = null;
+        let connections = [];
+        let isHost = true;
+        let activeQuestion = null;
+
+        const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+
+        function playSound(type) {
+            if (audioCtx.state === 'suspended') audioCtx.resume();
+            const osc = audioCtx.createOscillator(); const gain = audioCtx.createGain();
+            osc.connect(gain); gain.connect(audioCtx.destination);
+            const now = audioCtx.currentTime;
+            if (type === 'correct') {
+                osc.type = 'sine'; osc.frequency.setValueAtTime(523.25, now);
+                osc.frequency.setValueAtTime(659.25, now + 0.1); osc.frequency.setValueAtTime(783.99, now + 0.2);
+                gain.gain.setValueAtTime(0.2, now); gain.gain.exponentialRampToValueAtTime(0.001, now + 0.4);
+                osc.start(now); osc.stop(now + 0.4);
+            } else if (type === 'wrong') {
+                osc.type = 'sawtooth'; osc.frequency.setValueAtTime(160, now);
+                osc.frequency.linearRampToValueAtTime(70, now + 0.3);
+                gain.gain.setValueAtTime(0.3, now); gain.gain.exponentialRampToValueAtTime(0.001, now + 0.35);
+                osc.start(now); osc.stop(now + 0.35);
+            } else if (type === 'buzz') {
+                osc.type = 'triangle'; osc.frequency.setValueAtTime(440, now);
+                osc.frequency.setValueAtTime(880, now + 0.08);
+                gain.gain.setValueAtTime(0.3, now); gain.gain.exponentialRampToValueAtTime(0.001, now + 0.2);
+                osc.start(now); osc.stop(now + 0.2);
+            }
+        }
+
+        // --- STARFIELD ---
+        const canvas = document.getElementById('starfield');
+        const ctx = canvas.getContext('2d');
+        let stars = [];
+        function initStarfield() {
+            canvas.width = window.innerWidth; canvas.height = window.innerHeight;
+            stars = Array.from({length: 120}, () => ({
+                x: Math.random() * canvas.width, y: Math.random() * canvas.height,
+                size: Math.random() * 2, speed: Math.random() * 0.5 + 0.1, alpha: Math.random()
+            }));
+        }
+        function animateStarfield() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height); ctx.fillStyle = '#ffffff';
+            stars.forEach(s => {
+                ctx.globalAlpha = s.alpha; ctx.fillRect(s.x, s.y, s.size, s.size);
+                s.y += s.speed; if (s.y > canvas.height) s.y = 0;
+            });
+            requestAnimationFrame(animateStarfield);
+        }
+        window.addEventListener('resize', initStarfield);
+        initStarfield(); animateStarfield();
+
+        function restartGame() {
+            if (confirm("Möchtest du das aktuelle Spiel neustarten? (Punkte werden auf 0 gesetzt, Karten wieder freigeschaltet)")) {
+                gameData.forEach(cat => cat.questions.forEach(q => q.played = false));
+                players.forEach(p => p.score = 0);
+                saveDataToStorage(); renderBoard(); renderPlayers();
+                broadcast({ type: 'RESTART', gameData, players });
+            }
+        }
+
+        function saveDataToStorage() {
+            try { localStorage.setItem('jeopardy_data', JSON.stringify(gameData)); }
+            catch (e) { alert("Speicher voll! Zu große Mediendateien hochgeladen."); }
+        }
+
+        function renderBoard() {
+            const board = document.getElementById('boardGrid'); board.innerHTML = '';
+            gameData.forEach(cat => {
+                const cEl = document.createElement('div');
+                cEl.className = 'category-card'; cEl.innerText = cat.category;
+                board.appendChild(cEl);
+            });
+            for (let row = 0; row < 5; row++) {
+                for (let col = 0; col < 5; col++) {
+                    const qData = gameData[col].questions[row];
+                    const card = document.createElement('div');
+                    card.className = `point-card ${qData.played ? 'played' : ''}`;
+                    let mediaIcon = '';
+                    if (qData.qAudio || qData.aAudio) mediaIcon += ' 🎶';
+                    if (qData.qImage || qData.aImage) mediaIcon += ' 🖼️';
+                    card.innerHTML = `${qData.points} ${mediaIcon ? `<span class="media-icon-badge">${mediaIcon}</span>` : ''}`;
+                    if (!qData.played) card.onclick = () => openQuestion(col, row);
+                    board.appendChild(card);
+                }
+            }
+        }
+
+        // GLOW-BOX AVATAR GENERATOR (HILFSFUNKTION)
+        function createAvatarBoxHtml(avatarSrc, size = '48px') {
+            const isImage = avatarSrc && avatarSrc.startsWith('data:image');
+            const inner = isImage 
+                ? `<img src="${avatarSrc}">` 
+                : `<span class="emoji">${avatarSrc || '👨‍🚀'}</span>`;
+            
+            const customStyle = size !== '48px' ? `style="width:${size}; height:${size}; min-width:${size}; min-height:${size};"` : '';
+            return `<div class="avatar-glow-box" ${customStyle}>${inner}</div>`;
+        }
+
+        function renderPlayers() {
+            const row = document.getElementById('playersRow'); row.innerHTML = '';
+            players.forEach(p => {
+                const card = document.createElement('div'); card.className = 'player-card';
+                card.innerHTML = `
+                    ${createAvatarBoxHtml(p.avatar)}
+                    <div class="player-info">
+                        <div class="player-name">${p.name}</div>
+                        <div class="player-score">${p.score} Pkt.</div>
+                    </div>
+                    <div class="score-controls">
+                        <button class="score-btn" onclick="updateScore('${p.id}', 100)">+</button>
+                        <button class="score-btn" onclick="updateScore('${p.id}', -100)">-</button>
+                    </div>
+                `;
+                row.appendChild(card);
+            });
+        }
+
+        function updateScore(playerId, amount) {
+            const p = players.find(x => x.id === playerId);
+            if (p) { p.score += amount; renderPlayers(); broadcast({ type: 'SCORE_UPDATE', players }); }
+        }
+
+        function openQuestion(col, row) {
+            activeQuestion = { col, row }; buzzerQueue = [];
+            const q = gameData[col].questions[row];
+            document.getElementById('modalCat').innerText = gameData[col].category;
+            document.getElementById('modalPoints').innerText = q.points;
+            document.getElementById('modalQuestionText').innerText = q.question;
+
+            const qMediaBox = document.getElementById('modalQuestionMedia'); qMediaBox.innerHTML = '';
+            if (q.qImage) qMediaBox.innerHTML += `<img src="${q.qImage}">`;
+            if (q.qAudio) qMediaBox.innerHTML += `<audio src="${q.qAudio}" controls autoplay></audio>`;
+
+            document.getElementById('modalAnswerText').innerText = q.answer;
+            const aMediaBox = document.getElementById('modalAnswerMedia'); aMediaBox.innerHTML = '';
+            if (q.aImage) aMediaBox.innerHTML += `<img src="${q.aImage}">`;
+            if (q.aAudio) aMediaBox.innerHTML += `<audio id="ansAudio" src="${q.aAudio}" controls></audio>`;
+
+            document.getElementById('modalAnswerBox').classList.remove('active');
+            renderQueue(); document.getElementById('questionModal').classList.add('active');
+            broadcast({ type: 'OPEN_QUESTION', col, row });
+        }
+
+        function triggerBuzzer() {
+            playSound('buzz');
+            const me = players.find(p => p.id === myId) || { id: myId, name: 'Anonym', avatar: myAvatar };
+            if (!buzzerQueue.some(item => item.id === me.id)) {
+                buzzerQueue.push({ id: me.id, name: me.name, avatar: me.avatar });
+                renderQueue(); broadcast({ type: 'BUZZ_IN', user: me });
+            }
+        }
+
+        function renderQueue() {
+            const container = document.getElementById('queueListDisplay');
+            if (buzzerQueue.length === 0) { container.innerHTML = '<i>Noch niemand gebuzzert...</i>'; return; }
+            container.innerHTML = '';
+            buzzerQueue.forEach((item, index) => {
+                const row = document.createElement('div');
+                row.className = `queue-item ${index === 0 ? 'active-turn' : ''}`;
+                row.innerHTML = `
+                    <div class="queue-user-info">
+                        ${createAvatarBoxHtml(item.avatar, '32px')}
+                        <span>#${index + 1} <strong>${item.name}</strong></span>
+                    </div>
+                    <span>${index === 0 ? '👉 Am Zug' : 'Wartet...'}</span>
+                `;
+                container.appendChild(row);
+            });
+        }
+
+        function penaltyAndNextInQueue() {
+            if (buzzerQueue.length === 0) return alert("Kein Spieler in der Warteschlange!");
+            const activeUser = buzzerQueue[0];
+            const qPts = gameData[activeQuestion.col].questions[activeQuestion.row].points;
+            updateScore(activeUser.id, -Math.round(qPts / 2)); playSound('wrong');
+            buzzerQueue.shift(); renderQueue(); broadcast({ type: 'QUEUE_UPDATE', buzzerQueue });
+        }
+
+        function awardPointsToCurrent(isCorrect) {
+            if (buzzerQueue.length === 0) { closeQuestionModal(); return; }
+            const activeUser = buzzerQueue[0];
+            const qPts = gameData[activeQuestion.col].questions[activeQuestion.row].points;
+            if (isCorrect) { updateScore(activeUser.id, qPts); playSound('correct'); }
+            closeQuestionModal();
+        }
+
+        function revealAnswer() {
+            document.getElementById('modalAnswerBox').classList.add('active');
+            const ansAudio = document.getElementById('ansAudio'); if (ansAudio) ansAudio.play();
+            broadcast({ type: 'REVEAL_ANSWER' });
+        }
+
+        function closeQuestionModal() {
+            if (activeQuestion) {
+                gameData[activeQuestion.col].questions[activeQuestion.row].played = true;
+                saveDataToStorage(); renderBoard(); activeQuestion = null;
+            }
+            document.getElementById('questionModal').classList.remove('active');
+            broadcast({ type: 'CLOSE_QUESTION' });
+        }
+
+        function handleAvatarUpload(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                const img = new Image(); img.src = e.target.result;
+                img.onload = function() {
+                    const canvas = document.createElement('canvas'); const maxDim = 150;
+                    let w = img.width, h = img.height;
+                    if (w > h && w > maxDim) { h *= maxDim / w; w = maxDim; }
+                    else if (h > maxDim) { w *= maxDim / h; h = maxDim; }
+                    canvas.width = w; canvas.height = h;
+                    const ctx = canvas.getContext('2d'); ctx.drawImage(img, 0, 0, w, h);
+                    myAvatar = canvas.toDataURL('image/jpeg', 0.8);
+                    
+                    const preview = document.getElementById('avatarPreviewImg');
+                    preview.src = myAvatar; preview.style.display = 'block';
+                };
+            };
+            reader.readAsDataURL(file);
+        }
+
+        // --- EDITOR & IMPORT / EXPORT / RESET ---
+        function openEditor() {
+            const list = document.getElementById('editorList'); list.innerHTML = '';
+            gameData.forEach((cat, cIdx) => {
+                const block = document.createElement('div'); block.className = 'editor-cat-block';
+                block.innerHTML = `
+                    <div class="editor-input-group">
+                        <label>Kategorie ${cIdx + 1}</label>
+                        <input type="text" id="cat-title-${cIdx}" value="${cat.category}">
+                    </div>
+                `;
+                cat.questions.forEach((q, qIdx) => {
+                    block.innerHTML += `
+                        <div style="margin-top:10px; padding:8px; border-left:3px solid var(--accent-blue); background:rgba(0,0,0,0.2); border-radius:0 6px 6px 0;">
+                            <div class="editor-input-group">
+                                <label style="color:var(--accent-blue); font-weight:bold;">Punkte für diese Frage</label>
+                                <input type="number" id="q-points-${cIdx}-${qIdx}" value="${q.points}" style="max-width:150px;">
+                            </div>
+                            <div class="editor-input-group">
+                                <label>Frage</label>
+                                <input type="text" id="q-text-${cIdx}-${qIdx}" value="${q.question}">
+                                <div class="media-inputs">
+                                    <input type="file" accept="image/*" onchange="handleFileUpload(event, ${cIdx}, ${qIdx}, 'qImage')">
+                                    <input type="file" accept="audio/*" onchange="handleFileUpload(event, ${cIdx}, ${qIdx}, 'qAudio')">
+                                </div>
+                            </div>
+                            <div class="editor-input-group">
+                                <label>Antwort</label>
+                                <input type="text" id="a-text-${cIdx}-${qIdx}" value="${q.answer}">
+                                <div class="media-inputs">
+                                    <input type="file" accept="image/*" onchange="handleFileUpload(event, ${cIdx}, ${qIdx}, 'aImage')">
+                                    <input type="file" accept="audio/*" onchange="handleFileUpload(event, ${cIdx}, ${qIdx}, 'aAudio')">
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                });
+                list.appendChild(block);
+            });
+            document.getElementById('editorModal').classList.add('active');
+        }
+
+        function handleFileUpload(event, cIdx, qIdx, fieldKey) {
+            const file = event.target.files[0]; if (!file) return;
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                if (file.type.startsWith('image/')) {
+                    const img = new Image(); img.src = e.target.result;
+                    img.onload = function() {
+                        const canvas = document.createElement('canvas'); const maxDim = 600;
+                        let w = img.width, h = img.height;
+                        if (w > h && w > maxDim) { h *= maxDim / w; w = maxDim; }
+                        else if (h > maxDim) { w *= maxDim / h; h = maxDim; }
+                        canvas.width = w; canvas.height = h;
+                        const ctx = canvas.getContext('2d'); ctx.drawImage(img, 0, 0, w, h);
+                        gameData[cIdx].questions[qIdx][fieldKey] = canvas.toDataURL('image/jpeg', 0.7);
+                        alert("Bild geladen!");
+                    };
+                } else {
+                    gameData[cIdx].questions[qIdx][fieldKey] = e.target.result; alert("Audio geladen!");
+                }
+            };
+            reader.readAsDataURL(file);
+        }
+
+        function saveEditorData() {
+            gameData.forEach((cat, cIdx) => {
+                cat.category = document.getElementById(`cat-title-${cIdx}`).value;
+                cat.questions.forEach((q, qIdx) => {
+                    const ptsVal = parseInt(document.getElementById(`q-points-${cIdx}-${qIdx}`).value, 10);
+                    q.points = isNaN(ptsVal) ? 100 : ptsVal;
+                    q.question = document.getElementById(`q-text-${cIdx}-${qIdx}`).value;
+                    q.answer = document.getElementById(`a-text-${cIdx}-${qIdx}`).value;
+                });
+            });
+            saveDataToStorage(); renderBoard(); closeEditorModal();
+        }
+
+        function resetToDefaultData() {
+            if (confirm("Möchtest du wirklich ALLE Fragen & Kategorien auf den Ursprungszustand zurücksetzen? Alle Anpassungen gehen verloren!")) {
+                localStorage.removeItem('jeopardy_data');
+                gameData = JSON.parse(JSON.stringify(DEFAULT_DATA));
+                saveDataToStorage(); renderBoard(); openEditor();
+                alert("Erfolgreich zurückgesetzt!");
+            }
+        }
+
+        function exportQuestionsJSON() {
+            const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(gameData));
+            const downloadAnchor = document.createElement('a');
+            downloadAnchor.setAttribute("href", dataStr); downloadAnchor.setAttribute("download", "jeopardy_quiz.json");
+            document.body.appendChild(downloadAnchor); downloadAnchor.click(); downloadAnchor.remove();
+        }
+
+        function importQuestionsJSON(event) {
+            const file = event.target.files[0]; if (!file) return;
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                try {
+                    const imported = JSON.parse(e.target.result);
+                    if (Array.isArray(imported) && imported.length === 5) {
+                        gameData = imported; saveDataToStorage(); renderBoard(); openEditor();
+                        alert("Quiz-Datei erfolgreich geladen!");
+                    } else { alert("Ungültiges Datei-Format!"); }
+                } catch (err) { alert("Fehler beim Lesen der JSON-Datei!"); }
+            };
+            reader.readAsText(file);
+        }
+
+        function closeEditorModal() { document.getElementById('editorModal').classList.remove('active'); }
+        function openLobbyModal() { document.getElementById('lobbyModal').classList.add('active'); }
+        function closeLobbyModal() { document.getElementById('lobbyModal').classList.remove('active'); }
+
+        // --- MULTIPLAYER NETWORK ---
+        function hostGame() {
+            const name = document.getElementById('playerNameInput').value || 'Host';
+            const code = Math.random().toString(36).substring(2, 6).toUpperCase();
+            peer = new Peer(`jeopardy-room-${code}`);
+            peer.on('open', id => {
+                myId = id; isHost = true; players = [{ id: myId, name: name, score: 0, avatar: myAvatar }];
+                renderPlayers();
+                document.getElementById('roomBadge').style.display = 'flex';
+                document.getElementById('roomCodeDisplay').innerText = code;
+                closeLobbyModal();
+            });
+            peer.on('connection', conn => {
+                connections.push(conn);
+                conn.on('data', data => handleNetworkMessage(data, conn));
+            });
+        }
+
+        function joinGame() {
+            const name = document.getElementById('playerNameInput').value || 'Spieler';
+            const code = document.getElementById('joinCodeInput').value.trim().toUpperCase();
+            if (!code) return alert("Code angeben!");
+            peer = new Peer();
+            peer.on('open', id => {
+                myId = id; isHost = false;
+                const conn = peer.connect(`jeopardy-room-${code}`);
+                connections.push(conn);
+                conn.on('open', () => { conn.send({ type: 'JOIN', name, id, avatar: myAvatar }); closeLobbyModal(); });
+                conn.on('data', data => handleNetworkMessage(data, conn));
+            });
+        }
+
+        function broadcast(msg) { connections.forEach(c => { if (c.open) c.send(msg); }); }
+
+        function handleNetworkMessage(data, conn) {
+            if (data.type === 'JOIN' && isHost) {
+                players.push({ id: data.id, name: data.name, score: 0, avatar: data.avatar || getRandomEmoji() });
+                renderPlayers(); broadcast({ type: 'SYNC_STATE', players, gameData });
+            } else if (data.type === 'SYNC_STATE') {
+                players = data.players; gameData = data.gameData; renderBoard(); renderPlayers();
+            } else if (data.type === 'SCORE_UPDATE') {
+                players = data.players; renderPlayers();
+            } else if (data.type === 'BUZZ_IN') {
+                if (!buzzerQueue.some(x => x.id === data.user.id)) {
+                    buzzerQueue.push(data.user); renderQueue(); playSound('buzz');
+                }
+            } else if (data.type === 'QUEUE_UPDATE') {
+                buzzerQueue = data.buzzerQueue; renderQueue();
+            } else if (data.type === 'OPEN_QUESTION') {
+                openQuestion(data.col, data.row);
+            } else if (data.type === 'REVEAL_ANSWER') {
+                revealAnswer();
+            } else if (data.type === 'CLOSE_QUESTION') {
+                closeQuestionModal();
+            } else if (data.type === 'RESTART') {
+                gameData = data.gameData; players = data.players; renderBoard(); renderPlayers();
+            }
+        }
+
+        renderBoard();
+        renderPlayers();
+    </script>
+</body>
+</html>
