@@ -3,22 +3,29 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>DamaroX Jeopardy Deluxe</title>
+    <title>Jeopardy Galaxy</title>
     <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@500;700;900&family=Rajdhani:wght@600;700&display=swap" rel="stylesheet">
     <style>
         :root {
-            --bg-color: #0f172a;
-            --card-bg: #1e293b;
-            --accent-blue: #2563eb;
-            --accent-gold: #f59e0b;
+            --bg-space: #030712;
+            --card-bg: rgba(15, 23, 42, 0.75);
+            --card-border: #1e293b;
+            --cyan-glow: #00f0ff;
+            --pink-glow: #ff007f;
+            --yellow-glow: #facc15;
             --text-color: #f8fafc;
             --danger: #ef4444;
             --success: #22c55e;
         }
 
+        * {
+            box-sizing: border-box;
+            font-family: 'Rajdhani', sans-serif;
+        }
+
         body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background-color: var(--bg-color);
+            background-color: var(--bg-space);
             color: var(--text-color);
             margin: 0;
             padding: 20px;
@@ -26,80 +33,148 @@
             flex-direction: column;
             align-items: center;
             min-height: 100vh;
+            overflow-x: hidden;
+            position: relative;
         }
 
-        h1 { margin-bottom: 5px; color: var(--accent-gold); }
+        #starCanvas {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            pointer-events: none;
+            z-index: -1;
+            background: radial-gradient(circle at 50% 50%, #060919 0%, #020408 100%);
+        }
 
-        /* Top Bar Control */
-        .top-bar {
+        .header-bar {
             display: flex;
-            gap: 10px;
+            justify-content: space-between;
+            align-items: center;
+            width: 100%;
+            max-width: 1300px;
             margin-bottom: 20px;
-            flex-wrap: wrap;
-            justify-content: center;
+            padding: 10px 0;
+            border-bottom: 1px solid rgba(0, 240, 255, 0.2);
+            z-index: 10;
         }
 
-        button, input, select {
-            padding: 10px 15px;
-            border-radius: 8px;
-            border: none;
-            font-weight: bold;
+        .logo-title {
+            font-family: 'Orbitron', sans-serif;
+            font-size: 24px;
+            font-weight: 900;
+            letter-spacing: 2px;
+            color: var(--cyan-glow);
+            text-shadow: 0 0 10px rgba(0, 240, 255, 0.5);
+            white-space: nowrap;
+        }
+
+        .logo-title span {
+            color: var(--pink-glow);
+            text-shadow: 0 0 10px rgba(255, 0, 127, 0.5);
+        }
+
+        .nav-buttons {
+            display: flex;
+            gap: 8px;
+            align-items: center;
+            flex-wrap: nowrap;
+        }
+
+        button, label.btn-file {
+            background: linear-gradient(135deg, rgba(30, 41, 59, 0.8), rgba(15, 23, 42, 0.9));
+            color: var(--text-color);
+            border: 1px solid var(--cyan-glow);
+            padding: 8px 14px;
+            border-radius: 6px;
+            font-family: 'Orbitron', sans-serif;
+            font-size: 13px;
+            font-weight: 700;
             cursor: pointer;
-            font-size: 14px;
+            transition: all 0.2s ease;
+            box-shadow: 0 0 8px rgba(0, 240, 255, 0.2);
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            white-space: nowrap;
         }
 
-        button {
-            background-color: var(--accent-blue);
-            color: white;
-            transition: transform 0.1s, background 0.2s;
+        button:hover, label.btn-file:hover {
+            background: var(--cyan-glow);
+            color: #000;
+            box-shadow: 0 0 15px var(--cyan-glow);
+            transform: translateY(-2px);
         }
 
-        button:hover { opacity: 0.9; transform: translateY(-2px); }
-        button:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
+        button:disabled {
+            opacity: 0.4;
+            cursor: not-allowed;
+            transform: none;
+            box-shadow: none;
+        }
 
-        .btn-gold { background-color: var(--accent-gold); color: black; }
-        .btn-danger { background-color: var(--danger); }
-        .btn-success { background-color: var(--success); }
-
-        /* Main Container */
         .main-layout {
             display: grid;
-            grid-template-columns: 3fr 1fr;
             gap: 20px;
             width: 100%;
-            max-width: 1400px;
+            max-width: 1300px;
+            z-index: 10;
         }
 
-        /* Jeopardy Board */
+        body.is-host-layout .main-layout {
+            grid-template-columns: 3fr 1fr;
+        }
+        body.is-host-layout .bottom-players-container {
+            display: none !important;
+        }
+
+        body:not(.is-host-layout) .main-layout {
+            grid-template-columns: 1fr;
+        }
+        body:not(.is-host-layout) .sidebar {
+            display: none !important;
+        }
+        body:not(.is-host-layout) .bottom-players-container {
+            display: flex !important;
+        }
+
         .board {
             display: grid;
             grid-template-columns: repeat(5, 1fr);
             gap: 10px;
-            background-color: #0284c7;
-            padding: 10px;
+            background: rgba(15, 23, 42, 0.6);
+            padding: 12px;
             border-radius: 12px;
-            box-shadow: 0 10px 25px rgba(0,0,0,0.5);
+            border: 1px solid rgba(0, 240, 255, 0.3);
+            box-shadow: 0 0 25px rgba(0, 0, 0, 0.8);
+            backdrop-filter: blur(4px);
         }
 
         .category-header {
-            background-color: #0369a1;
+            background: rgba(15, 23, 42, 0.9);
+            border: 1px solid rgba(0, 240, 255, 0.4);
             padding: 15px 5px;
             text-align: center;
-            font-weight: bold;
-            font-size: 16px;
+            font-family: 'Orbitron', sans-serif;
+            font-size: 14px;
+            font-weight: 700;
             border-radius: 6px;
+            color: #fff;
             display: flex;
             align-items: center;
             justify-content: center;
-            min-height: 50px;
+            min-height: 60px;
             text-transform: uppercase;
         }
 
         .card {
-            background-color: #1e3a8a;
-            color: var(--accent-gold);
+            background: rgba(15, 23, 42, 0.8);
+            border: 1px solid rgba(0, 240, 255, 0.3);
+            color: var(--cyan-glow);
+            font-family: 'Orbitron', sans-serif;
             font-size: 28px;
-            font-weight: bold;
+            font-weight: 900;
             display: flex;
             align-items: center;
             justify-content: center;
@@ -107,13 +182,27 @@
             border-radius: 6px;
             cursor: pointer;
             user-select: none;
-            transition: all 0.2s;
+            transition: all 0.2s ease;
+            text-shadow: 0 0 8px rgba(0, 240, 255, 0.6);
         }
 
-        .card:hover { background-color: #1d4ed8; transform: scale(1.02); }
-        .card.used { background-color: #334155; color: #64748b; cursor: not-allowed; transform: none; }
+        .card:hover {
+            border-color: var(--pink-glow);
+            color: var(--pink-glow);
+            text-shadow: 0 0 12px var(--pink-glow);
+            transform: scale(1.02);
+            background: rgba(255, 0, 127, 0.1);
+        }
 
-        /* Sidebar & Player Video Grid */
+        .card.used {
+            background: rgba(15, 23, 42, 0.3);
+            border-color: rgba(255, 255, 255, 0.05);
+            color: rgba(255, 255, 255, 0.1);
+            text-shadow: none;
+            cursor: not-allowed;
+            transform: none;
+        }
+
         .sidebar {
             display: flex;
             flex-direction: column;
@@ -123,248 +212,513 @@
         .players-grid {
             display: flex;
             flex-direction: column;
+            gap: 12px;
+        }
+
+        .bottom-players-container {
+            width: 100%;
+            flex-direction: column;
             gap: 10px;
+            margin-top: 5px;
+            display: none;
+        }
+
+        .players-row {
+            display: flex;
+            gap: 15px;
+            overflow-x: auto;
+            padding-bottom: 5px;
+            justify-content: center;
+            flex-wrap: wrap;
         }
 
         .player-card {
-            background-color: var(--card-bg);
+            background: rgba(15, 23, 42, 0.8);
+            border: 1px solid rgba(0, 240, 255, 0.3);
             border-radius: 8px;
             padding: 10px;
             display: flex;
             flex-direction: column;
             align-items: center;
             position: relative;
-            border: 2px solid transparent;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.5);
+            backdrop-filter: blur(4px);
+            width: 180px;
+            flex-shrink: 0;
         }
 
-        .player-card.active-turn { border-color: var(--accent-gold); box-shadow: 0 0 15px rgba(245, 158, 11, 0.5); }
-        .player-card.buzzed { border-color: var(--danger); box-shadow: 0 0 15px rgba(239, 68, 68, 0.8); }
+        .player-card.active-turn {
+            border-color: var(--yellow-glow);
+            box-shadow: 0 0 15px var(--yellow-glow);
+        }
+
+        .player-card.buzzed {
+            border-color: var(--pink-glow);
+            box-shadow: 0 0 20px var(--pink-glow);
+        }
 
         .video-box {
             width: 100%;
-            height: 140px;
+            height: 110px;
             background-color: #000;
-            border-radius: 6px;
+            border-radius: 4px;
             object-fit: cover;
+            border: 1px solid rgba(255,255,255,0.1);
         }
 
         .player-info {
             display: flex;
+            align-items: center;
             justify-content: space-between;
             width: 100%;
-            margin-top: 5px;
-            font-weight: bold;
+            margin-top: 8px;
         }
 
-        /* Question Modal Overlay */
+        .player-details {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            overflow: hidden;
+        }
+
+        .avatar-img {
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            object-fit: cover;
+            border: 1px solid var(--cyan-glow);
+            flex-shrink: 0;
+        }
+
+        .p-name { font-weight: 700; font-size: 14px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .p-score { font-family: 'Orbitron', sans-serif; color: var(--yellow-glow); font-weight: 700; font-size: 13px; }
+
+        .player-card.host-card .p-score {
+            display: none !important;
+        }
+
+        .host-sidebar-panel {
+            background: rgba(15, 23, 42, 0.85);
+            border: 1px solid rgba(0, 240, 255, 0.3);
+            border-radius: 8px;
+            padding: 12px;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            backdrop-filter: blur(4px);
+        }
+
         .modal {
             position: fixed;
             top: 0; left: 0; right: 0; bottom: 0;
-            background: rgba(0,0,0,0.85);
+            background: rgba(3, 7, 18, 0.85);
             display: none;
             flex-direction: column;
             align-items: center;
             justify-content: center;
             z-index: 100;
             padding: 20px;
+            backdrop-filter: blur(5px);
         }
 
         .modal-content {
-            background-color: var(--card-bg);
+            background: rgba(15, 23, 42, 0.95);
+            border: 1px solid var(--cyan-glow);
             padding: 30px;
             border-radius: 12px;
-            max-width: 700px;
+            max-width: 650px;
             width: 90%;
             text-align: center;
-            box-shadow: 0 0 30px rgba(0,0,0,0.8);
-            position: relative;
+            box-shadow: 0 0 30px rgba(0, 240, 255, 0.3);
+            max-height: 90vh;
+            overflow-y: auto;
         }
 
-        .question-text { font-size: 26px; margin-bottom: 20px; }
-        .answer-text { font-size: 20px; color: var(--accent-gold); margin-top: 15px; display: none; }
-
-        /* Buzzer Big Button */
-        .buzzer-btn {
-            width: 100%;
-            padding: 20px;
-            font-size: 24px;
-            background-color: var(--danger);
-            color: white;
-            border-radius: 12px;
-            margin-top: 20px;
-            animation: pulse 1s infinite alternate;
-        }
-
-        @keyframes pulse {
-            0% { transform: scale(1); }
-            100% { transform: scale(1.03); }
-        }
-
-        /* Settings Modal */
-        .settings-modal {
-            position: fixed;
-            top: 0; left: 0; right: 0; bottom: 0;
-            background: rgba(0,0,0,0.8);
-            display: none;
-            align-items: center;
-            justify-content: center;
-            z-index: 200;
-        }
-
-        .settings-box {
-            background: var(--card-bg);
-            padding: 25px;
-            border-radius: 10px;
-            width: 350px;
-            display: flex;
-            flex-direction: column;
-            gap: 15px;
-        }
-
-        .settings-box select { width: 100%; background: #334155; color: white; margin-top: 5px; }
+        .question-text { font-size: 22px; margin: 15px 0; line-height: 1.4; }
+        .question-media { max-width: 100%; max-height: 200px; border-radius: 6px; margin: 8px auto; border: 1px solid rgba(0,240,255,0.3); display: none; }
+        .question-audio { width: 100%; margin: 8px 0; display: none; }
+        .answer-container { margin-top: 15px; border-top: 1px dashed rgba(0,240,255,0.2); padding-top: 10px; display: none; }
+        .answer-text { font-size: 18px; color: var(--yellow-glow); font-weight: bold; }
 
         .host-controls {
             margin-top: 15px;
-            padding: 10px;
-            background: rgba(255,255,255,0.05);
+            padding: 12px;
+            background: rgba(255, 255, 255, 0.03);
+            border: 1px dashed rgba(0, 240, 255, 0.3);
             border-radius: 8px;
             display: flex;
             flex-direction: column;
             gap: 10px;
         }
+
+        select, input[type="text"], textarea, input[type="number"] {
+            background: #0f172a;
+            color: #fff;
+            border: 1px solid var(--cyan-glow);
+            padding: 10px;
+            border-radius: 6px;
+            font-size: 15px;
+        }
+
+        .buzzer-btn {
+            width: 100%;
+            padding: 15px;
+            font-size: 18px;
+            font-family: 'Orbitron', sans-serif;
+            font-weight: 900;
+            border-radius: 8px;
+            cursor: not-allowed;
+            background: linear-gradient(135deg, #334155, #1e293b);
+            border-color: #475569;
+            color: #94a3b8;
+            box-shadow: none;
+            transition: all 0.2s ease;
+        }
+
+        .buzzer-btn.active {
+            background: linear-gradient(135deg, #ef4444, #b91c1c);
+            border-color: #fca5a5;
+            color: white;
+            cursor: pointer;
+            box-shadow: 0 0 20px rgba(239, 68, 68, 0.8);
+        }
+
+        .settings-box {
+            background: rgba(15, 23, 42, 0.98);
+            border: 2px solid var(--cyan-glow);
+            padding: 30px;
+            border-radius: 14px;
+            width: 850px;
+            max-width: 95%;
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+            max-height: 88vh;
+            overflow-y: auto;
+            box-shadow: 0 0 40px rgba(0, 240, 255, 0.25);
+        }
+
+        .settings-box label {
+            font-size: 16px;
+            font-weight: 700;
+            color: var(--cyan-glow);
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+
+        .editor-category-block {
+            background: rgba(0, 0, 0, 0.3);
+            border: 1px solid rgba(0, 240, 255, 0.3);
+            padding: 18px;
+            border-radius: 10px;
+            margin-bottom: 15px;
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+
+        .editor-card-row {
+            display: grid;
+            grid-template-columns: 100px 1fr 1fr;
+            gap: 12px;
+            align-items: center;
+            background: rgba(15, 23, 42, 0.9);
+            padding: 12px;
+            border-radius: 8px;
+            border: 1px solid rgba(255, 255, 255, 0.08);
+        }
+
+        @media (max-width: 768px) {
+            .editor-card-row { grid-template-columns: 1fr; }
+        }
     </style>
 </head>
-<body>
+<body class="">
 
-    <h1>DamaroX Jeopardy Deluxe</h1>
-    
-    <div class="top-bar">
-        <button id="btnSettings" onclick="openSettings()">⚙️ Audio/Video Settings</button>
-        <button id="btnHost" class="btn-gold" onclick="startHost()">👑 Host werden</button>
-        <input type="text" id="joinId" placeholder="Host-ID eingeben...">
-        <button onclick="joinGame()">🎮 Spiel beitreten</button>
-        <span id="myIdDisplay" style="align-self: center; font-size: 12px; opacity: 0.7;"></span>
+    <canvas id="starCanvas"></canvas>
+
+    <div class="header-bar">
+        <div class="logo-title">JEOPARDY <span>GALAXY</span></div>
+        <div class="nav-buttons">
+            <button onclick="resetGame()">🔄 Neustart</button>
+            <button onclick="openEditor()">⚙️ Editor</button>
+            <button onclick="openSettings()">📷 Einstellungen</button>
+            <button id="btnHost" onclick="createLobby()">👑 Lobby Erstellen</button>
+            <div id="roomCodeContainer" style="display:none; align-items:center; gap:4px; background: rgba(0,0,0,0.4); padding: 4px 8px; border-radius: 6px; border: 1px solid var(--cyan-glow);">
+                <span id="roomCodeDisplay" style="font-family: Orbitron; font-size: 13px; color: var(--yellow-glow); letter-spacing: 1px;">••••••</span>
+                <button onclick="toggleRoomCodeVisibility()" id="toggleCodeBtn" style="padding: 4px 6px; font-size: 10px;">👁️</button>
+            </div>
+            <input type="text" id="joinId" placeholder="Raum-Code..." style="width: 115px; padding: 8px; font-size: 13px;">
+            <button onclick="joinGame()">🎮 Beitreten</button>
+        </div>
     </div>
 
     <div class="main-layout">
-        <!-- Jeopardy Spielfeld -->
         <div class="board" id="board"></div>
 
-        <!-- Rechte Leiste: Spieler & Webcams -->
         <div class="sidebar">
-            <h3>Spieler</h3>
-            <div class="players-grid" id="playersGrid">
-                <!-- Eigener Stream & Remote Streams landen hier -->
+            <h3 style="font-family: 'Orbitron', sans-serif; margin: 0; color: var(--cyan-glow); font-size: 14px;">HOST & SPIELER</h3>
+            <div class="players-grid" id="playersGridSidebar"></div>
+            
+            <div class="host-sidebar-panel">
+                <span style="font-family: 'Orbitron', sans-serif; font-size: 11px; color: var(--cyan-glow);">⚡ BUZZER & QUEUE</span>
+                <button id="buzzerBtn" class="buzzer-btn" onclick="sendBuzzer()">🔔 BUZZER!</button>
+                <div id="turnStatus" style="font-size: 12px; font-weight: bold; color: var(--yellow-glow); text-align: center; min-height: 20px;">Bereit</div>
             </div>
         </div>
+    </div>
+
+    <div class="bottom-players-container" id="bottomPlayersWrapper">
+        <h3 style="font-family: 'Orbitron', sans-serif; margin: 0; color: var(--cyan-glow); text-align: center; font-size: 15px;">MITSPIELER</h3>
+        <div class="players-row" id="playersGridBottom"></div>
     </div>
 
     <!-- Fragen Modal -->
     <div class="modal" id="questionModal">
         <div class="modal-content">
-            <div id="modalCategory" style="color: var(--accent-gold); font-weight: bold;">KATEGORIE</div>
+            <div id="modalCategory" style="color: var(--pink-glow); font-family: 'Orbitron', sans-serif; font-weight: 700; font-size: 18px;">KATEGORIE</div>
+            
             <div class="question-text" id="modalQuestion">Frage wird geladen...</div>
-            <div class="answer-text" id="modalAnswer">Antwort: ...</div>
+            <img id="modalQuestionImg" class="question-media" src="" alt="Fragen Bild">
+            <audio id="modalQuestionAudio" class="question-audio" controls src=""></audio>
 
-            <!-- Host Steuerung innerhalb der Frage -->
             <div id="hostQuestionControls" class="host-controls" style="display: none;">
-                <p style="margin:0; font-size: 14px;">1. Wählen wer anfangen darf:</p>
-                <div style="display:flex; gap:5px;">
-                    <select id="selectStarterPlayer"></select>
-                    <button class="btn-gold" onclick="assignTurn()">Auswählen</button>
+                <div id="hostRatingBtns" style="display: flex; gap: 8px; justify-content: center; margin-top: 5px;">
+                    <button style="border-color: var(--success); padding: 8px 14px;" onclick="rateAnswer(true)">✅ Richtig</button>
+                    <button style="border-color: var(--danger); padding: 8px 14px;" onclick="rateAnswer(false)">❌ Falsch / Weiter</button>
                 </div>
                 
-                <div id="hostRatingBtns" style="display: none; margin-top: 10px; gap: 10px; justify-content: center;">
-                    <button class="btn-success" onclick="rateAnswer(true)">✅ Richtig (+Punkte)</button>
-                    <button class="btn-danger" onclick="rateAnswer(false)">❌ Falsch (Buzzer frei!)</button>
+                <div style="display: flex; gap: 8px; justify-content: center; margin-top: 5px;">
+                    <button onclick="toggleAnswer()" style="font-size: 12px; padding: 8px;">👁️ Antwort an/aus</button>
+                    <button style="border-color: var(--danger); font-size: 12px; padding: 8px;" onclick="closeModal()">Frage Schließen</button>
                 </div>
-                <button style="margin-top: 10px;" onclick="toggleAnswer()">👁️ Antwort auflösen</button>
-                <button class="btn-danger" onclick="closeModal()">Frage Schließen</button>
             </div>
 
-            <!-- Status-Anzeige -->
-            <div id="turnStatus" style="margin-top: 15px; font-weight: bold;"></div>
-
-            <!-- Buzzer Button für Spieler -->
-            <button id="buzzerBtn" class="buzzer-btn" style="display: none;" onclick="sendBuzzer()">🔔 BUZZER!</button>
+            <div class="answer-container" id="modalAnswerContainer">
+                <div class="answer-text" id="modalAnswerText">Antwort: ...</div>
+                <img id="modalAnswerImg" class="question-media" src="" alt="Antwort Bild">
+                <audio id="modalAnswerAudio" class="question-audio" controls src=""></audio>
+            </div>
         </div>
     </div>
 
-    <!-- Einstellungen Modal -->
-    <div class="settings-modal" id="settingsModal">
-        <div class="settings-box">
-            <h3>⚙️ Geräte-Einstellungen</h3>
-            <label>
-                Kamera:
-                <select id="videoSource"></select>
+    <!-- Kamera & Profil Einstellungen Modal -->
+    <div class="modal" id="settingsModal">
+        <div class="settings-box" style="width: 600px;">
+            <h3 style="font-family: Orbitron; color: var(--cyan-glow); margin:0; font-size: 22px;">📷 KAMERA & PROFIL</h3>
+            
+            <label>Dein Anzeigename:
+                <input type="text" id="usernameInput" value="Spieler 1">
             </label>
-            <label>
-                Mikrofon:
-                <select id="audioSource"></select>
+
+            <label>Profilbild (von Gerät hochladen):
+                <input type="file" id="avatarFileInput" accept="image/*" style="display:none;" onchange="handleFileUpload(event)">
+                <label class="btn-file" for="avatarFileInput" style="width:100%; justify-content:center; padding: 12px;">📁 Bild auswählen...</label>
             </label>
-            <div style="display: flex; gap: 10px; margin-top: 10px;">
-                <button class="btn-success" style="flex:1" onclick="applySettings()">Speichern</button>
-                <button class="btn-danger" onclick="closeSettings()">Abbrechen</button>
+            <div id="avatarPreviewContainer" style="display:none; align-items:center; gap:12px;">
+                <img id="avatarPreview" class="avatar-img" src="" alt="Preview" style="width: 48px; height: 48px;">
+                <span style="font-size:14px; color:var(--success); font-weight:bold;">Profilbild erfolgreich geladen!</span>
+            </div>
+
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
+                <label>Kamera:
+                    <select id="videoSource" style="width:100%;"></select>
+                </label>
+                <label>Mikrofon:
+                    <select id="audioSource" style="width:100%;"></select>
+                </label>
+            </div>
+
+            <div style="display: flex; gap: 15px; margin-top: 15px;">
+                <button style="flex:1; border-color:var(--success); padding: 14px; font-size: 16px;" onclick="applySettings()">Speichern & Schließen</button>
+                <button style="border-color:var(--danger); padding: 14px; font-size: 16px;" onclick="closeSettings()">Abbrechen</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Fragen & Punkte Editor Modal -->
+    <div class="modal" id="editorModal">
+        <div class="settings-box" style="width: 950px;">
+            <h3 style="font-family: Orbitron; color: var(--cyan-glow); margin:0; font-size: 22px;">✏️ FRAGEN, PUNKTE & MEDIEN EDITOR</h3>
+            
+            <div style="display: flex; gap: 15px; background: rgba(0,0,0,0.3); padding: 12px; border-radius: 8px; border: 1px dashed rgba(0,240,255,0.3);">
+                <button style="flex:1; padding: 10px;" onclick="exportEditorJson()">💾 Fragen als JSON exportieren</button>
+                <label class="btn-file" style="flex:1; justify-content:center; margin:0; padding: 10px;" for="importEditorJsonInput">📂 Fragenset JSON importieren</label>
+                <input type="file" id="importEditorJsonInput" accept=".json" style="display:none;" onchange="importEditorJson(event)">
+            </div>
+
+            <div id="editorContent"></div>
+            
+            <div style="display: flex; gap: 15px; margin-top: 15px;">
+                <button style="flex:1; border-color:var(--success); padding: 14px; font-size: 16px;" onclick="saveEditorData()">Speichern & Übernehmen</button>
+                <button style="border-color:var(--danger); padding: 14px; font-size: 16px;" onclick="closeEditor()">Abbrechen</button>
             </div>
         </div>
     </div>
 
     <script>
-        // --- JEOPARDY FRAGEN ---
-        const gameData = [
-            { category: "Gaming", cards: [
-                { points: 100, q: "Wie heißt die Hauptfigur in 'The Legend of Zelda'?", a: "Link" },
-                { points: 200, q: "Welches Spiel ist das meistveraufte aller Zeiten?", a: "Minecraft" },
-                { points: 300, q: "Wie heißt die Welt, in der World of Warcraft spielt?", a: "Azeroth" }
+        const canvas = document.getElementById('starCanvas');
+        const ctx = canvas.getContext('2d');
+        let stars = [];
+        const numStars = 120;
+
+        function resizeCanvas() {
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+        }
+        window.addEventListener('resize', resizeCanvas);
+        resizeCanvas();
+
+        for (let i = 0; i < numStars; i++) {
+            stars.push({
+                x: Math.random() * canvas.width,
+                y: Math.random() * canvas.height,
+                radius: Math.random() * 1.5 + 0.5,
+                alpha: Math.random(),
+                speed: Math.random() * 0.005 + 0.002
+            });
+        }
+
+        function animateStars() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            ctx.fillStyle = '#ffffff';
+            stars.forEach(star => {
+                star.alpha += star.speed;
+                if (star.alpha > 1 || star.alpha < 0.1) star.speed = -star.speed;
+                ctx.globalAlpha = Math.abs(star.alpha);
+                ctx.beginPath();
+                ctx.arc(star.x, star.y, star.radius, 0, Math.PI * 2);
+                ctx.fill();
+            });
+            requestAnimationFrame(animateStars);
+        }
+        animateStars();
+
+        const AudioContext = window.AudioContext || window.webkitAudioContext;
+        let audioCtx = null;
+
+        function initAudio() {
+            if (!audioCtx) audioCtx = new AudioContext();
+            if (audioCtx.state === 'suspended') audioCtx.resume();
+        }
+
+        function playSound(type) {
+            initAudio();
+            if (!audioCtx) return;
+            const osc = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+            osc.connect(gain);
+            gain.connect(audioCtx.destination);
+            const now = audioCtx.currentTime;
+
+            if (type === 'click') {
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(600, now);
+                osc.frequency.exponentialRampToValueAtTime(200, now + 0.1);
+                gain.gain.setValueAtTime(0.3, now);
+                gain.gain.linearRampToValueAtTime(0.01, now + 0.1);
+                osc.start(now); osc.stop(now + 0.1);
+            } else if (type === 'buzzer') {
+                osc.type = 'sawtooth';
+                osc.frequency.setValueAtTime(150, now);
+                osc.frequency.setValueAtTime(120, now + 0.15);
+                gain.gain.setValueAtTime(0.5, now);
+                gain.gain.linearRampToValueAtTime(0.01, now + 0.4);
+                osc.start(now); osc.stop(now + 0.4);
+            } else if (type === 'correct') {
+                osc.type = 'triangle';
+                osc.frequency.setValueAtTime(523.25, now);
+                osc.frequency.setValueAtTime(659.25, now + 0.1);
+                osc.frequency.setValueAtTime(783.99, now + 0.2);
+                gain.gain.setValueAtTime(0.3, now);
+                gain.gain.linearRampToValueAtTime(0.01, now + 0.35);
+                osc.start(now); osc.stop(now + 0.35);
+            } else if (type === 'wrong') {
+                osc.type = 'sawtooth';
+                osc.frequency.setValueAtTime(200, now);
+                osc.frequency.setValueAtTime(140, now + 0.15);
+                gain.gain.setValueAtTime(0.4, now);
+                gain.gain.linearRampToValueAtTime(0.01, now + 0.3);
+                osc.start(now); osc.stop(now + 0.3);
+            }
+        }
+
+        let defaultGameData = [
+            { category: "Kategorie 1", cards: [
+                { points: 200, q: "Wie heißt die Hauptfigur in 'The Legend of Zelda'?", a: "Link", qMedia: "", qMediaType: "", aMedia: "", aMediaType: "" },
+                { points: 400, q: "Welches Spiel ist das meistveraufte aller Zeiten?", a: "Minecraft", qMedia: "", qMediaType: "", aMedia: "", aMediaType: "" },
+                { points: 600, q: "Wie heißt die Welt, in der World of Warcraft spielt?", a: "Azeroth", qMedia: "", qMediaType: "", aMedia: "", aMediaType: "" },
+                { points: 800, q: "Welcher Entwickler erstellte Fortnite?", a: "Epic Games", qMedia: "", qMediaType: "", aMedia: "", aMediaType: "" },
+                { points: 1000, q: "In welchem Jahr erschien die erste PlayStation in Japan?", a: "1994", qMedia: "", qMediaType: "", aMedia: "", aMediaType: "" }
             ]},
-            { category: "Internet", cards: [
-                { points: 100, q: "Wofür steht die Abkürzung 'WWW'?", a: "World Wide Web" },
-                { points: 200, q: "In welchem Jahr wurde YouTube gegründet?", a: "2005" },
-                { points: 300, q: "Wie heißt das Maskottchen von GitHub?", a: "Octocat" }
+            { category: "Kategorie 2", cards: [
+                { points: 200, q: "Wofür steht die Abkürzung 'WWW'?", a: "World Wide Web", qMedia: "", qMediaType: "", aMedia: "", aMediaType: "" },
+                { points: 400, q: "In welchem Jahr wurde YouTube gegründet?", a: "2005", qMedia: "", qMediaType: "", aMedia: "", aMediaType: "" },
+                { points: 600, q: "Wie heißt das Maskottchen von GitHub?", a: "Octocat", qMedia: "", qMediaType: "", aMedia: "", aMediaType: "" },
+                { points: 800, q: "Welche Firma entwickelte das Android-Betriebssystem?", a: "Android Inc.", qMedia: "", qMediaType: "", aMedia: "", aMediaType: "" },
+                { points: 1000, q: "Was war die erste Nachricht über ARPANET?", a: "LO", qMedia: "", qMediaType: "", aMedia: "", aMediaType: "" }
             ]},
-            { category: "Filme", cards: [
-                { points: 100, q: "Wie heißt der grüne Oger von DreamWorks?", a: "Shrek" },
-                { points: 200, q: "Welches Metall ist im Schild von Captain America?", a: "Vibranium" },
-                { points: 300, q: "Wie viele Ringe der Macht wurden den Menschen gegeben?", a: "9" }
+            { category: "Kategorie 3", cards: [
+                { points: 200, q: "Wie heißt der grüne Oger von DreamWorks?", a: "Shrek", qMedia: "", qMediaType: "", aMedia: "", aMediaType: "" },
+                { points: 400, q: "Welches Metall ist im Schild von Captain America?", a: "Vibranium", qMedia: "", qMediaType: "", aMedia: "", aMediaType: "" },
+                { points: 600, q: "Wie viele Ringe der Macht wurden den Menschen gegeben?", a: "9", qMedia: "", qMediaType: "", aMedia: "", aMediaType: "" },
+                { points: 800, q: "Wie heißt der Planet der Na'vi in Avatar?", a: "Pandora", qMedia: "", qMediaType: "", aMedia: "", aMediaType: "" },
+                { points: 1000, q: "Welcher Film gewann den ersten Oscar für den besten Animationsfilm?", a: "Shrek", qMedia: "", qMediaType: "", aMedia: "", aMediaType: "" }
             ]},
-            { category: "Technik", cards: [
-                { points: 100, q: "Was bedeutet die Abkürzung CPU?", a: "Central Processing Unit" },
-                { points: 200, q: "Welches Betriebssystem basiert auf dem Linux-Kernel?", a: "Android (oder Ubuntu/Debian etc.)" },
-                { points: 300, q: "Wofür steht RAM im Computer?", a: "Random Access Memory" }
+            { category: "Kategorie 4", cards: [
+                { points: 200, q: "Was bedeutet die Abkürzung CPU?", a: "Central Processing Unit", qMedia: "", qMediaType: "", aMedia: "", aMediaType: "" },
+                { points: 400, q: "Welches Betriebssystem basiert auf dem Linux-Kernel?", a: "Android", qMedia: "", qMediaType: "", aMedia: "", aMediaType: "" },
+                { points: 600, q: "Wofür steht RAM im Computer?", a: "Random Access Memory", qMedia: "", qMediaType: "", aMedia: "", aMediaType: "" },
+                { points: 800, q: "Welcher Programmiersprache verdanken wir die Web-Interaktivität?", a: "JavaScript", qMedia: "", qMediaType: "", aMedia: "", aMediaType: "" },
+                { points: 1000, q: "Was ist der Binärcode für die Zahl 10?", a: "1010", qMedia: "", qMediaType: "", aMedia: "", aMediaType: "" }
             ]},
-            { category: "DamaroX Special", cards: [
-                { points: 100, q: "Welche Farbe hat der Bestseller-Buzzer?", a: "Rot" },
-                { points: 200, q: "Welcher Streamer/Creator baut dieses Jeopardy?", a: "DamaroX" },
-                { points: 300, q: "Was ist 42?", a: "Die Antwort auf die Frage nach dem Leben, dem Universum und dem ganzen Rest" }
+            { category: "Kategorie 5", cards: [
+                { points: 200, q: "Welche Farbe hat der Bestseller-Buzzer?", a: "Rot", qMedia: "", qMediaType: "", aMedia: "", aMediaType: "" },
+                { points: 400, q: "Welches Franchise nutzt die Macht?", a: "Star Wars", qMedia: "", qMediaType: "", aMedia: "", aMediaType: "" },
+                { points: 600, q: "Was ist 42?", a: "Die Antwort auf alles", qMedia: "", qMediaType: "", aMedia: "", aMediaType: "" },
+                { points: 800, q: "Wie heißen die Punkte beim Jeopardy?", a: "Punkte / Pkt.", qMedia: "", qMediaType: "", aMedia: "", aMediaType: "" },
+                { points: 1000, q: "Welches Design hat diese Website?", a: "Galaxy / Cyberpunk", qMedia: "", qMediaType: "", aMedia: "", aMediaType: "" }
             ]}
         ];
 
-        // --- GLOBALE VARIABLEN ---
+        let gameData = JSON.parse(JSON.stringify(defaultGameData));
         let peer = null;
-        let connections = []; // Nur für Host
-        let hostConn = null;  // Nur für Client
+        let connections = [];
+        let hostConn = null;
         let isHost = false;
         let myStream = null;
-        let myName = "Spieler_" + Math.floor(Math.random() * 1000);
-        let players = {}; // id -> { name, score, stream }
-
+        let uploadedAvatarBase64 = null;
+        let players = {};
         let activeCard = null;
         let currentAnsweringPlayer = null;
         let buzzerAllowed = false;
-        let playerWhoFailedFirst = null;
+        
+        let actualRoomId = "";
+        let roomCodeVisible = false;
 
-        // --- INIT & DEVICES ---
         window.onload = async () => {
             initBoard();
-            await getDevices();
-            startLocalStream();
+            updateLayoutMode();
+            await startLocalStream();
         };
+
+        function updateLayoutMode() {
+            if (isHost) {
+                document.body.classList.add('is-host-layout');
+            } else {
+                document.body.classList.remove('is-host-layout');
+            }
+        }
+
+        function getMyName() {
+            return document.getElementById('usernameInput').value || "Spieler";
+        }
 
         function initBoard() {
             const boardEl = document.getElementById('board');
             boardEl.innerHTML = '';
             
-            // Header
             gameData.forEach(cat => {
                 const head = document.createElement('div');
                 head.className = 'category-header';
@@ -372,12 +726,11 @@
                 boardEl.appendChild(head);
             });
 
-            // Grid Cards
-            for (let r = 0; r < 3; r++) {
+            for (let r = 0; r < 5; r++) {
                 gameData.forEach((cat, cIdx) => {
                     const cardData = cat.cards[r];
                     const card = document.createElement('div');
-                    card.className = 'card';
+                    card.className = 'card' + (cardData.used ? ' used' : '');
                     card.innerText = cardData.points;
                     card.id = `card-${cIdx}-${r}`;
                     card.onclick = () => onCardClick(cIdx, r);
@@ -386,15 +739,56 @@
             }
         }
 
-        // --- STREAM & SETTINGS ---
+        function handleFileUpload(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                uploadedAvatarBase64 = e.target.result;
+                document.getElementById('avatarPreview').src = uploadedAvatarBase64;
+                document.getElementById('avatarPreviewContainer').style.display = 'flex';
+            };
+            reader.readAsDataURL(file);
+        }
+
+        function handleMediaUpload(event, cIdx, rIdx, targetType) {
+            const file = event.target.files[0];
+            if (!file) return;
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                const isAudio = file.type.startsWith('audio');
+                if (targetType === 'question') {
+                    gameData[cIdx].cards[rIdx].qMedia = e.target.result;
+                    gameData[cIdx].cards[rIdx].qMediaType = isAudio ? 'audio' : 'image';
+                } else {
+                    gameData[cIdx].cards[rIdx].aMedia = e.target.result;
+                    gameData[cIdx].cards[rIdx].aMediaType = isAudio ? 'audio' : 'image';
+                }
+                openEditor();
+            };
+            reader.readAsDataURL(file);
+        }
+
+        function removeMedia(cIdx, rIdx, targetType) {
+            if (targetType === 'question') {
+                gameData[cIdx].cards[rIdx].qMedia = "";
+                gameData[cIdx].cards[rIdx].qMediaType = "";
+            } else {
+                gameData[cIdx].cards[rIdx].aMedia = "";
+                gameData[cIdx].cards[rIdx].aMediaType = "";
+            }
+            openEditor();
+        }
+
         async function getDevices() {
             try {
+                // Vorher einmal kurz Berechtigungen anfordern, damit echte Namen geladen werden
+                await navigator.mediaDevices.getUserMedia({ video: true, audio: true }).catch(() => {});
+                
                 const devices = await navigator.mediaDevices.enumerateDevices();
                 const videoSelect = document.getElementById('videoSource');
                 const audioSelect = document.getElementById('audioSource');
-                
-                videoSelect.innerHTML = '';
-                audioSelect.innerHTML = '';
+                videoSelect.innerHTML = ''; audioSelect.innerHTML = '';
 
                 devices.forEach(device => {
                     const option = document.createElement('option');
@@ -407,29 +801,26 @@
                         audioSelect.appendChild(option);
                     }
                 });
-            } catch (e) { console.error("Geräte konnten nicht geladen werden", e); }
+            } catch (e) { console.error(e); }
         }
 
         async function startLocalStream(videoId = null, audioId = null) {
             try {
-                if (myStream) {
-                    myStream.getTracks().forEach(track => track.stop());
-                }
+                if (myStream) myStream.getTracks().forEach(t => t.stop());
                 const constraints = {
                     video: videoId ? { deviceId: { exact: videoId } } : true,
                     audio: audioId ? { deviceId: { exact: audioId } } : true
                 };
                 myStream = await navigator.mediaDevices.getUserMedia(constraints);
-                
-                // My local UI element
-                addOrUpdatePlayerCard('me', myName, 0, myStream, true);
-                await getDevices(); // Labels nach Permission neu laden
-            } catch (err) {
-                alert("Kamera/Mikrofon Fehler: " + err.message);
-            }
+                const myId = peer ? peer.id : 'me';
+                addOrUpdatePlayerCard(myId, getMyName(), players[myId]?.score || 0, myStream, uploadedAvatarBase64, true, isHost);
+            } catch (err) { console.warn(err); }
         }
 
-        function openSettings() { document.getElementById('settingsModal').style.display = 'flex'; }
+        async function openSettings() { 
+            await getDevices();
+            document.getElementById('settingsModal').style.display = 'flex'; 
+        }
         function closeSettings() { document.getElementById('settingsModal').style.display = 'none'; }
         
         async function applySettings() {
@@ -437,68 +828,211 @@
             const aId = document.getElementById('audioSource').value;
             await startLocalStream(vId, aId);
             closeSettings();
+
+            if (isHost && peer) {
+                players[peer.id].name = getMyName();
+                players[peer.id].avatar = uploadedAvatarBase64;
+                broadcastState();
+            } else if (!isHost && hostConn) {
+                hostConn.send({ type: 'UPDATE_PROFILE', name: getMyName(), avatar: uploadedAvatarBase64 });
+            }
         }
 
-        // --- NETZWERK (PEERJS) ---
-        function startHost() {
-            isHost = true;
-            peer = new Peer();
+        function exportEditorJson() {
+            const dataStr = JSON.stringify(gameData, null, 2);
+            const blob = new Blob([dataStr], { type: "application/json" });
+            const url = URL.createObjectURL(blob);
+            
+            const downloadAnchor = document.createElement('a');
+            downloadAnchor.href = url;
+            downloadAnchor.download = "jeopardy_fragen_set.json";
+            document.body.appendChild(downloadAnchor);
+            downloadAnchor.click();
+            document.body.removeChild(downloadAnchor);
+            URL.revokeObjectURL(url);
+        }
 
-            peer.on('open', id => {
-                document.getElementById('myIdDisplay').innerText = "HOST-ID: " + id;
-                document.getElementById('btnHost').disabled = true;
-                players[id] = { name: myName + " (Host)", score: 0 };
-                updatePlayerListUI();
+        function importEditorJson(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                try {
+                    const parsed = JSON.parse(e.target.result);
+                    if (Array.isArray(parsed)) {
+                        gameData = parsed;
+                        initBoard();
+                        openEditor();
+                        alert("Fragenset erfolgreich aus JSON importiert!");
+                    } else {
+                        alert("Ungültiges Format: Die JSON-Datei muss ein Fragen-Array enthalten.");
+                    }
+                } catch(err) {
+                    alert("Fehler beim Lesen der JSON-Datei.");
+                }
+            };
+            reader.readAsText(file);
+        }
+
+        function openEditor() {
+            const container = document.getElementById('editorContent');
+            container.innerHTML = '';
+
+            gameData.forEach((cat, cIdx) => {
+                const catBox = document.createElement('div');
+                catBox.className = 'editor-category-block';
+                catBox.innerHTML = `
+                    <label>Kategorie ${cIdx + 1} Name:
+                        <input type="text" id="edit-cat-${cIdx}" value="${cat.category}">
+                    </label>
+                `;
+
+                cat.cards.forEach((card, rIdx) => {
+                    const qHas = Boolean(card.qMedia);
+                    const aHas = Boolean(card.aMedia);
+
+                    const cardRow = document.createElement('div');
+                    cardRow.className = 'editor-card-row';
+                    cardRow.innerHTML = `
+                        <label>Punkte:
+                            <input type="number" id="edit-pts-${cIdx}-${rIdx}" value="${card.points}" style="padding:8px;">
+                        </label>
+                        <div style="display:flex; flex-direction:column; gap:4px;">
+                            <input type="text" id="edit-q-${cIdx}-${rIdx}" value="${card.q}" placeholder="Frage Text" style="padding:8px;">
+                            <div style="display:flex; align-items:center; gap:6px;">
+                                <input type="file" id="file-q-${cIdx}-${rIdx}" accept="image/*,audio/*" style="display:none;" onchange="handleMediaUpload(event, ${cIdx}, ${rIdx}, 'question')">
+                                <label class="btn-file" for="file-q-${cIdx}-${rIdx}" style="padding:4px 8px; font-size:11px;">🖼️/🎵 Frage Medien</label>
+                                <span style="font-size:11px; color:${qHas ? 'var(--success)' : '#94a3b8'}">${qHas ? 'Vorhanden' : 'Keine'}</span>
+                                ${qHas ? '<button type="button" onclick="removeMedia(' + cIdx + ',' + rIdx + ',\'question\')" style="padding:2px 6px; font-size:10px; border-color:var(--danger);">Löschen</button>' : ''}
+                            </div>
+                        </div>
+                        <div style="display:flex; flex-direction:column; gap:4px;">
+                            <input type="text" id="edit-a-${cIdx}-${rIdx}" value="${card.a}" placeholder="Antwort Text" style="padding:8px;">
+                            <div style="display:flex; align-items:center; gap:6px;">
+                                <input type="file" id="file-a-${cIdx}-${rIdx}" accept="image/*,audio/*" style="display:none;" onchange="handleMediaUpload(event, ${cIdx}, ${rIdx}, 'answer')">
+                                <label class="btn-file" for="file-a-${cIdx}-${rIdx}" style="padding:4px 8px; font-size:11px;">🖼️/🎵 Antwort Medien</label>
+                                <span style="font-size:11px; color:${aHas ? 'var(--success)' : '#94a3b8'}">${aHas ? 'Vorhanden' : 'Keine'}</span>
+                                ${aHas ? '<button type="button" onclick="removeMedia(' + cIdx + ',' + rIdx + ',\'answer\')" style="padding:2px 6px; font-size:10px; border-color:var(--danger);">Löschen</button>' : ''}
+                            </div>
+                        </div>
+                    `;
+                    catBox.appendChild(cardRow);
+                });
+                container.appendChild(catBox);
             });
 
+            document.getElementById('editorModal').style.display = 'flex';
+        }
+
+        function closeEditor() { document.getElementById('editorModal').style.display = 'none'; }
+
+        function saveEditorData() {
+            gameData.forEach((cat, cIdx) => {
+                const catInput = document.getElementById(`edit-cat-${cIdx}`);
+                if (catInput) cat.category = catInput.value;
+
+                cat.cards.forEach((card, rIdx) => {
+                    const qInput = document.getElementById(`edit-q-${cIdx}-${rIdx}`);
+                    const aInput = document.getElementById(`edit-a-${cIdx}-${rIdx}`);
+                    const ptsInput = document.getElementById(`edit-pts-${cIdx}-${rIdx}`);
+                    if (qInput) card.q = qInput.value;
+                    if (aInput) card.a = aInput.value;
+                    if (ptsInput) card.points = parseInt(ptsInput.value) || 200;
+                });
+            });
+
+            initBoard();
+            closeEditor();
+            if (isHost) broadcast({ type: 'UPDATE_GAMEDATA', gameData });
+        }
+
+        function generateRoomCode() {
+            return Math.random().toString(36).substring(2, 8).toUpperCase();
+        }
+
+        function toggleRoomCodeVisibility() {
+            roomCodeVisible = !roomCodeVisible;
+            const display = document.getElementById('roomCodeDisplay');
+            const btn = document.getElementById('toggleCodeBtn');
+            if (roomCodeVisible) {
+                display.innerText = actualRoomId;
+                btn.innerText = "🙈";
+            } else {
+                display.innerText = "••••••";
+                btn.innerText = "👁️";
+            }
+        }
+
+        function createLobby() {
+            actualRoomId = generateRoomCode();
+            isHost = true;
+            updateLayoutMode();
+            peer = new Peer(actualRoomId);
+
+            peer.on('open', id => {
+                document.getElementById('btnHost').style.display = 'none';
+                document.getElementById('roomCodeContainer').style.display = 'flex';
+                document.getElementById('roomCodeDisplay').innerText = "••••••";
+                roomCodeVisible = false;
+
+                players[id] = { name: getMyName(), score: 0, avatar: uploadedAvatarBase64, isHost: true };
+                updatePlayerListUI();
+            });
+            peer.on('error', () => { createLobby(); });
             peer.on('connection', conn => {
                 connections.push(conn);
                 conn.on('data', data => handleDataFromClient(data, conn));
+                conn.send({ type: 'UPDATE_GAMEDATA', gameData });
             });
-
             peer.on('call', call => {
                 call.answer(myStream);
                 call.on('stream', remoteStream => {
-                    addOrUpdatePlayerCard(call.peer, players[call.peer]?.name || "Spieler", players[call.peer]?.score || 0, remoteStream);
+                    addOrUpdatePlayerCard(call.peer, players[call.peer]?.name || "Spieler", players[call.peer]?.score || 0, remoteStream, players[call.peer]?.avatar, false, players[call.peer]?.isHost);
                 });
             });
         }
 
         function joinGame() {
-            const hostId = document.getElementById('joinId').value.trim();
-            if (!hostId) return alert("Bitte Host-ID eingeben!");
+            const hostId = document.getElementById('joinId').value.trim().toUpperCase();
+            if (!hostId) return alert("Bitte Code eingeben!");
+
+            isHost = false;
+            updateLayoutMode();
 
             peer = new Peer();
-            peer.on('open', id => {
+            peer.on('open', () => {
                 hostConn = peer.connect(hostId);
                 hostConn.on('open', () => {
-                    hostConn.send({ type: 'JOIN', name: myName });
+                    hostConn.send({ type: 'JOIN', name: getMyName(), avatar: uploadedAvatarBase64 });
+                    alert("Mit Raum verbunden!");
                 });
-
                 hostConn.on('data', data => handleDataFromHost(data));
-
                 peer.on('call', call => {
                     call.answer(myStream);
                     call.on('stream', remoteStream => {
-                        addOrUpdatePlayerCard(call.peer, "Host/Spieler", 0, remoteStream);
+                        addOrUpdatePlayerCard(call.peer, "Mitspieler", 0, remoteStream, null, false, false);
                     });
                 });
-
-                // Call host
                 peer.call(hostId, myStream);
             });
         }
 
-        // --- HOST LOGIK ---
         function handleDataFromClient(data, conn) {
             if (data.type === 'JOIN') {
-                players[conn.peer] = { name: data.name, score: 0 };
+                players[conn.peer] = { name: data.name, score: 0, avatar: data.avatar, isHost: false };
                 broadcastState();
+            }
+            if (data.type === 'UPDATE_PROFILE') {
+                if (players[conn.peer]) {
+                    players[conn.peer].name = data.name;
+                    players[conn.peer].avatar = data.avatar;
+                    broadcastState();
+                }
             }
             if (data.type === 'BUZZER') {
                 if (buzzerAllowed && !currentAnsweringPlayer) {
                     currentAnsweringPlayer = conn.peer;
-                    buzzerAllowed = false; // Sperren für den Rest
+                    buzzerAllowed = false;
                     broadcast({ type: 'PLAYER_BUZZED', playerId: conn.peer });
                 }
             }
@@ -506,196 +1040,248 @@
 
         function broadcast(msg) {
             connections.forEach(c => c.send(msg));
-            handleDataFromHost(msg); // Für den Host selbst
+            handleDataFromHost(msg);
         }
 
         function broadcastState() {
-            broadcast({ type: 'STATE_UPDATE', players, gameData });
+            broadcast({ type: 'STATE_UPDATE', players });
         }
 
-        // --- CLIENT RECEIVE LOGIK ---
         function handleDataFromHost(data) {
+            if (data.type === 'UPDATE_GAMEDATA') {
+                gameData = data.gameData;
+                initBoard();
+            }
             if (data.type === 'STATE_UPDATE') {
                 players = data.players;
                 updatePlayerListUI();
             }
             if (data.type === 'OPEN_QUESTION') {
+                playSound('click');
                 activeCard = data.card;
                 document.getElementById('modalCategory').innerText = data.category;
                 document.getElementById('modalQuestion').innerText = activeCard.q;
-                document.getElementById('modalAnswer').innerText = "Antwort: " + activeCard.a;
-                document.getElementById('modalAnswer').style.display = 'none';
-                document.getElementById('questionModal').style.display = 'flex';
-                document.getElementById('buzzerBtn').style.display = 'none';
-                document.getElementById('turnStatus').innerText = "Warte auf Host-Auswahl...";
-
-                if (isHost) {
-                    setupHostStarterSelect();
+                
+                const qImg = document.getElementById('modalQuestionImg');
+                const qAudio = document.getElementById('modalQuestionAudio');
+                qImg.style.display = 'none'; qAudio.style.display = 'none'; qAudio.pause();
+                if (activeCard.qMedia) {
+                    if (activeCard.qMediaType === 'audio') { qAudio.src = activeCard.qMedia; qAudio.style.display = 'block'; }
+                    else { qImg.src = activeCard.qMedia; qImg.style.display = 'block'; }
                 }
+
+                const aContainer = document.getElementById('modalAnswerContainer');
+                const aText = document.getElementById('modalAnswerText');
+                const aImg = document.getElementById('modalAnswerImg');
+                const aAudio = document.getElementById('modalAnswerAudio');
+                aContainer.style.display = 'none';
+                aImg.style.display = 'none'; aAudio.style.display = 'none'; aAudio.pause();
+                aText.innerText = "Antwort: " + activeCard.a;
+                if (activeCard.aMedia) {
+                    if (activeCard.aMediaType === 'audio') { aAudio.src = activeCard.aMedia; aAudio.style.display = 'block'; }
+                    else { aImg.src = activeCard.aMedia; aImg.style.display = 'block'; }
+                }
+
+                document.getElementById('questionModal').style.display = 'flex';
+                setBuzzerActive(false);
+
+                currentAnsweringPlayer = data.starterId;
+                const pName = players[data.starterId]?.name || "Unbekannt";
+                document.getElementById('turnStatus').innerText = `👉 AM ZUG: ${pName}`;
+                highlightActivePlayer(data.starterId);
+
+                if (isHost) document.getElementById('hostQuestionControls').style.display = 'block';
             }
             if (data.type === 'SET_TURN') {
                 currentAnsweringPlayer = data.playerId;
                 const pName = players[data.playerId]?.name || "Unbekannt";
                 document.getElementById('turnStatus').innerText = `👉 AM ZUG: ${pName}`;
-                
-                // Visual Highlight
                 highlightActivePlayer(data.playerId);
-
-                if (isHost) {
-                    document.getElementById('hostRatingBtns').style.display = 'flex';
-                }
             }
             if (data.type === 'ENABLE_BUZZER') {
+                playSound('wrong');
                 currentAnsweringPlayer = null;
                 buzzerAllowed = true;
-                document.getElementById('turnStatus').innerText = "❌ FALSCH! BUZZER FREIGESCHALTET!";
+                document.getElementById('turnStatus').innerText = "❌ BUZZER FREI!";
                 
-                // Zeige Buzzer nur, wenn man NICHT der erste gescheiterte Spieler ist
-                if (peer.id !== data.failedPlayerId) {
-                    document.getElementById('buzzerBtn').style.display = 'block';
-                }
+                if (peer && peer.id !== data.failedPlayerId) setBuzzerActive(true);
             }
             if (data.type === 'PLAYER_BUZZED') {
+                playSound('buzzer');
                 currentAnsweringPlayer = data.playerId;
                 buzzerAllowed = false;
-                document.getElementById('buzzerBtn').style.display = 'none';
+                setBuzzerActive(false);
+                
                 const pName = players[data.playerId]?.name || "Unbekannt";
-                document.getElementById('turnStatus').innerText = `🔔 GEBUZZERT VON: ${pName}!`;
+                document.getElementById('turnStatus').innerText = `🔔 GEBUZZERT: ${pName}!`;
                 highlightActivePlayer(data.playerId, true);
-
-                if (isHost) {
-                    document.getElementById('hostRatingBtns').style.display = 'flex';
-                }
             }
             if (data.type === 'CLOSE_QUESTION') {
                 document.getElementById('questionModal').style.display = 'none';
+                document.getElementById('modalQuestionAudio').pause();
+                document.getElementById('modalAnswerAudio').pause();
                 highlightActivePlayer(null);
+            }
+            if (data.type === 'RESET_GAME') {
+                executeSoftResetLocally();
             }
         }
 
-        // --- JEOPARDY STEUERUNG ---
+        function setBuzzerActive(active) {
+            const bBtn = document.getElementById('buzzerBtn');
+            if (active) bBtn.classList.add('active');
+            else bBtn.classList.remove('active');
+        }
+
+        function resetGame() {
+            if (isHost) {
+                executeSoftResetLocally();
+                broadcast({ type: 'RESET_GAME' });
+            } else {
+                alert("Nur der Host kann das Spiel zurücksetzen!");
+            }
+        }
+
+        function executeSoftResetLocally() {
+            gameData.forEach(cat => cat.cards.forEach(card => card.used = false));
+            initBoard();
+            Object.keys(players).forEach(pId => players[pId].score = 0);
+            updatePlayerListUI();
+            document.getElementById('questionModal').style.display = 'none';
+            document.getElementById('modalQuestionAudio').pause();
+            document.getElementById('modalAnswerAudio').pause();
+        }
+
+        function getPlayerIdsInOrder() {
+            // Filtert den Host heraus, sodass nur echte Mitspieler in Reihenfolge (von links nach rechts) übrig bleiben
+            return Object.keys(players).filter(id => !players[id].isHost);
+        }
+
         function onCardClick(c, r) {
             if (!isHost) return;
             const card = gameData[c].cards[r];
             if (card.used) return;
-            
             card.used = true;
             document.getElementById(`card-${c}-${r}`).classList.add('used');
             
-            playerWhoFailedFirst = null;
-            currentAnsweringPlayer = null;
-            buzzerAllowed = false;
+            const playingList = getPlayerIdsInOrder();
+            if (playingList.length === 0) {
+                alert("Keine Spieler im Spiel!");
+                return;
+            }
+            const firstPlayerId = playingList[0];
 
-            broadcast({
-                type: 'OPEN_QUESTION',
-                category: gameData[c].category,
-                card: card
-            });
-        }
-
-        function setupHostStarterSelect() {
-            document.getElementById('hostQuestionControls').style.display = 'block';
-            document.getElementById('hostRatingBtns').style.display = 'none';
-            const sel = document.getElementById('selectStarterPlayer');
-            sel.innerHTML = '';
-            
-            Object.keys(players).forEach(pId => {
-                const opt = document.createElement('option');
-                opt.value = pId;
-                opt.innerText = players[pId].name;
-                sel.appendChild(opt);
-            });
-        }
-
-        function assignTurn() {
-            const pId = document.getElementById('selectStarterPlayer').value;
-            broadcast({ type: 'SET_TURN', playerId: pId });
+            broadcast({ type: 'OPEN_QUESTION', category: gameData[c].category, card: card, starterId: firstPlayerId });
         }
 
         function rateAnswer(isCorrect) {
             if (!currentAnsweringPlayer) return;
-
+            
             if (isCorrect) {
+                playSound('correct');
                 players[currentAnsweringPlayer].score += activeCard.points;
                 broadcastState();
                 closeModal();
             } else {
+                playSound('wrong');
                 players[currentAnsweringPlayer].score -= activeCard.points;
-                playerWhoFailedFirst = currentAnsweringPlayer;
                 broadcastState();
                 
-                // Jetzt Buzzer freischalten!
-                broadcast({ type: 'ENABLE_BUZZER', failedPlayerId: playerWhoFailedFirst });
+                // Nächster Spieler in der Reihenfolge von links nach rechts
+                const playingList = getPlayerIdsInOrder();
+                const currentIndex = playingList.indexOf(currentAnsweringPlayer);
+                
+                if (currentIndex !== -1 && currentIndex < playingList.length - 1) {
+                    // Es gibt noch einen nächsten Spieler von links nach rechts!
+                    const nextPlayerId = playingList[currentIndex + 1];
+                    broadcast({ type: 'SET_TURN', playerId: nextPlayerId });
+                } else {
+                    // Letzter Spieler war dran -> Buzzer für alle freigeben
+                    const failedId = currentAnsweringPlayer;
+                    broadcast({ type: 'ENABLE_BUZZER', failedPlayerId: failedId });
+                }
             }
         }
 
         function sendBuzzer() {
             if (!buzzerAllowed) return;
-            if (isHost) {
-                handleDataFromClient({ type: 'BUZZER' }, { peer: peer.id });
-            } else {
-                hostConn.send({ type: 'BUZZER' });
-            }
+            if (isHost) handleDataFromClient({ type: 'BUZZER' }, { peer: peer.id });
+            else hostConn.send({ type: 'BUZZER' });
         }
 
         function toggleAnswer() {
-            const a = document.getElementById('modalAnswer');
+            const a = document.getElementById('modalAnswerContainer');
             a.style.display = a.style.display === 'none' ? 'block' : 'none';
         }
 
         function closeModal() {
-            if (isHost) {
-                broadcast({ type: 'CLOSE_QUESTION' });
-            }
+            if (isHost) broadcast({ type: 'CLOSE_QUESTION' });
         }
 
-        // --- UI HELPERS ---
-        function addOrUpdatePlayerCard(id, name, score, stream, isMe = false) {
-            let container = document.getElementById('player-' + id);
-            if (!container) {
-                container = document.createElement('div');
-                container.className = 'player-card';
-                container.id = 'player-' + id;
-                
-                const video = document.createElement('video');
-                video.className = 'video-box';
-                video.autoplay = true;
-                video.playsInline = true;
-                if (isMe) video.muted = true;
-                
-                const info = document.createElement('div');
-                info.className = 'player-info';
-                info.innerHTML = `<span class="p-name">${name}</span><span class="p-score">${score} P</span>`;
-                
-                container.appendChild(video);
-                container.appendChild(info);
-                document.getElementById('playersGrid').appendChild(container);
-            }
+        function addOrUpdatePlayerCard(id, name, score, stream, avatar = null, isMe = false, isPlayerHost = false) {
+            ['playersGridSidebar', 'playersGridBottom'].forEach(containerId => {
+                const gridEl = document.getElementById(containerId);
+                if (!gridEl) return;
 
-            if (stream) {
-                const v = container.querySelector('video');
-                v.srcObject = stream;
-            }
+                if (containerId === 'playersGridBottom' && isPlayerHost) return;
 
-            container.querySelector('.p-name').innerText = name;
-            container.querySelector('.p-score').innerText = score + " P";
+                let container = gridEl.querySelector('#player-' + containerId.replace('Grid', '') + '-' + id);
+                if (!container) {
+                    container = document.createElement('div');
+                    container.className = 'player-card' + (isPlayerHost ? ' host-card' : '');
+                    container.id = 'player-' + containerId.replace('Grid', '') + '-' + id;
+                    
+                    const video = document.createElement('video');
+                    video.className = 'video-box';
+                    video.autoplay = true;
+                    video.playsInline = true;
+                    if (isMe) video.muted = true;
+                    
+                    const info = document.createElement('div');
+                    info.className = 'player-info';
+                    
+                    const defaultAvatar = 'https://api.dicebear.com/7.x/bottts/svg?seed=' + id;
+                    info.innerHTML = `
+                        <div class="player-details">
+                            <img class="avatar-img" src="${avatar || defaultAvatar}" alt="Avatar">
+                            <span class="p-name">${name} ${isPlayerHost ? '👑' : ''}</span>
+                        </div>
+                        <span class="p-score">${score} Pkt.</span>
+                    `;
+                    
+                    container.appendChild(video);
+                    container.appendChild(info);
+                    gridEl.appendChild(container);
+                }
+
+                if (stream) {
+                    const v = container.querySelector('video');
+                    if (v.srcObject !== stream) v.srcObject = stream;
+                }
+
+                container.querySelector('.p-name').innerText = name + (isPlayerHost ? ' 👑' : '');
+                container.querySelector('.p-score').innerText = score + " Pkt.";
+                if (avatar) container.querySelector('.avatar-img').src = avatar;
+            });
         }
 
         function updatePlayerListUI() {
+            document.getElementById('playersGridSidebar').innerHTML = '';
+            document.getElementById('playersGridBottom').innerHTML = '';
+
             Object.keys(players).forEach(pId => {
-                addOrUpdatePlayerCard(pId, players[pId].name, players[pId].score, null, pId === peer?.id);
+                const isMe = peer && pId === peer.id;
+                const p = players[pId];
+                addOrUpdatePlayerCard(pId, p.name, p.score, null, p.avatar, isMe, p.isHost);
             });
         }
 
         function highlightActivePlayer(pId, buzzed = false) {
-            document.querySelectorAll('.player-card').forEach(c => {
-                c.classList.remove('active-turn', 'buzzed');
-            });
+            document.querySelectorAll('.player-card').forEach(c => c.classList.remove('active-turn', 'buzzed'));
             if (pId) {
-                const target = document.getElementById('player-' + pId);
-                if (target) {
-                    target.classList.add(buzzed ? 'buzzed' : 'active-turn');
-                }
+                document.querySelectorAll('.player-card').forEach(c => {
+                    if (c.id.endsWith('-' + pId)) c.classList.add(buzzed ? 'buzzed' : 'active-turn');
+                });
             }
         }
     </script>
