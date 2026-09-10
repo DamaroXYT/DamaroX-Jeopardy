@@ -170,7 +170,6 @@
             text-shadow: 0 0 8px rgba(0, 240, 255, 0.6);
         }
 
-        /* Nur der Host darf Fragen anklicken */
         body:not(.is-host-user) .card {
             cursor: default !important;
         }
@@ -216,7 +215,7 @@
             display: flex;
             flex-direction: column;
             gap: 10px;
-            margin-top: 15px;
+            margin-top: 25px;
             max-width: 1300px;
         }
 
@@ -229,19 +228,20 @@
             flex-wrap: wrap;
         }
 
+        /* Neue stylische Player Card mit Full-Cover Video */
         .player-card {
-            background: rgba(15, 23, 42, 0.8);
+            background: #000;
             border: 1px solid rgba(0, 240, 255, 0.3);
             border-radius: 8px;
-            padding: 10px;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
             position: relative;
             box-shadow: 0 4px 15px rgba(0,0,0,0.5);
-            backdrop-filter: blur(4px);
-            width: 180px;
+            width: 220px;
+            height: 140px;
             flex-shrink: 0;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
         }
 
         .player-card.active-turn {
@@ -255,43 +255,108 @@
         }
 
         .video-box {
+            position: absolute;
+            top: 0;
+            left: 0;
             width: 100%;
-            height: 110px;
-            background-color: #000;
-            border-radius: 4px;
+            height: 100%;
             object-fit: cover;
-            border: 1px solid rgba(255,255,255,0.1);
+            z-index: 1;
         }
 
-        .player-info {
+        /* Oben Links Overlay für Avatar & Name */
+        .player-overlay-top {
+            position: absolute;
+            top: 8px;
+            left: 8px;
+            z-index: 2;
             display: flex;
             align-items: center;
-            justify-content: space-between;
-            width: 100%;
-            margin-top: 8px;
-        }
-
-        .player-details {
-            display: flex;
-            align-items: center;
-            gap: 8px;
-            overflow: hidden;
+            gap: 6px;
+            background: rgba(3, 7, 18, 0.65);
+            padding: 3px 8px 3px 3px;
+            border-radius: 20px;
+            border: 1px solid rgba(0, 240, 255, 0.3);
+            backdrop-filter: blur(4px);
+            max-width: 85%;
         }
 
         .avatar-img {
-            width: 32px;
-            height: 32px;
+            width: 24px;
+            height: 24px;
             border-radius: 50%;
             object-fit: cover;
             border: 1px solid var(--cyan-glow);
             flex-shrink: 0;
         }
 
-        .p-name { font-weight: 700; font-size: 14px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-        .p-score { font-family: 'Orbitron', sans-serif; color: var(--yellow-glow); font-weight: 700; font-size: 13px; }
+        .p-name { 
+            font-weight: 700; 
+            font-size: 12px; 
+            white-space: nowrap; 
+            overflow: hidden; 
+            text-overflow: ellipsis; 
+            color: #fff;
+        }
 
-        .player-card.host-card .p-score {
+        /* Unten Mitte Overlay für Punkte im abgerundeten Rechteck */
+        .player-overlay-bottom {
+            position: absolute;
+            bottom: 8px;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 2;
+            background: rgba(3, 7, 18, 0.75);
+            border: 1px solid var(--cyan-glow);
+            padding: 3px 10px;
+            border-radius: 12px;
+            backdrop-filter: blur(4px);
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .p-score { 
+            font-family: 'Orbitron', sans-serif; 
+            color: var(--yellow-glow); 
+            font-weight: 700; 
+            font-size: 12px; 
+            white-space: nowrap;
+        }
+
+        .player-card.host-card .player-overlay-bottom {
             display: none !important;
+        }
+
+        /* Plus / Minus Punktekontrolle für den Host */
+        .score-adjuster {
+            display: flex;
+            gap: 3px;
+            align-items: center;
+        }
+
+        .score-btn {
+            background: rgba(15, 23, 42, 0.9);
+            color: var(--text-color);
+            border: 1px solid var(--cyan-glow);
+            border-radius: 4px;
+            width: 18px;
+            height: 18px;
+            font-size: 10px;
+            font-weight: 900;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            padding: 0;
+            box-shadow: none;
+        }
+
+        .score-btn:hover {
+            background: var(--cyan-glow);
+            color: #000;
+            transform: none;
+            box-shadow: 0 0 6px var(--cyan-glow);
         }
 
         .host-sidebar-panel {
@@ -817,7 +882,6 @@
                 };
                 myStream = await navigator.mediaDevices.getUserMedia(constraints);
                 
-                // Lokalen Stream direkt anzeigen
                 const myId = peer ? peer.id : 'me';
                 const myRoleIsHost = isHost;
                 addOrUpdatePlayerCard(myId, getMyName(), players[myId]?.score || 0, myStream, uploadedAvatarBase64, true, myRoleIsHost);
@@ -1022,7 +1086,6 @@
                 peer.on('call', call => {
                     call.answer(myStream);
                     call.on('stream', remoteStream => {
-                        // Finde heraus, ob der Anrufer der Host ist
                         const isCallerHost = players[call.peer]?.isHost || false;
                         addOrUpdatePlayerCard(call.peer, players[call.peer]?.name || (isCallerHost ? "Host" : "Mitspieler"), 0, remoteStream, players[call.peer]?.avatar, false, isCallerHost);
                     });
@@ -1050,6 +1113,12 @@
                     broadcast({ type: 'PLAYER_BUZZED', playerId: conn.peer });
                 }
             }
+            if (data.type === 'ADJUST_SCORE') {
+                if (players[data.playerId]) {
+                    players[data.playerId].score += data.amount;
+                    broadcastState();
+                }
+            }
         }
 
         function broadcast(msg) {
@@ -1059,6 +1128,17 @@
 
         function broadcastState() {
             broadcast({ type: 'STATE_UPDATE', players });
+        }
+
+        function adjustScore(pId, amount) {
+            if (isHost) {
+                if (players[pId]) {
+                    players[pId].score += amount;
+                    broadcastState();
+                }
+            } else {
+                hostConn.send({ type: 'ADJUST_SCORE', playerId: pId, amount: amount });
+            }
         }
 
         function handleDataFromHost(data) {
@@ -1227,7 +1307,6 @@
         }
 
         function addOrUpdatePlayerCard(id, name, score, stream, avatar = null, isMe = false, isPlayerHost = false) {
-            // Bestimme, in welches Grid die Karte gehört: Host immer in die Sidebar, Mitspieler nach unten
             const containerId = isPlayerHost ? 'hostSidebarContainer' : 'playersGridBottom';
             const gridEl = document.getElementById(containerId);
             if (!gridEl) return;
@@ -1244,20 +1323,32 @@
                 video.playsInline = true;
                 if (isMe) video.muted = true;
                 
-                const info = document.createElement('div');
-                info.className = 'player-info';
-                
+                const topOverlay = document.createElement('div');
+                topOverlay.className = 'player-overlay-top';
                 const defaultAvatar = 'https://api.dicebear.com/7.x/bottts/svg?seed=' + id;
-                info.innerHTML = `
-                    <div class="player-details">
-                        <img class="avatar-img" src="${avatar || defaultAvatar}" alt="Avatar">
-                        <span class="p-name">${name} ${isPlayerHost ? '👑' : ''}</span>
-                    </div>
-                    <span class="p-score">${score} Pkt.</span>
+                topOverlay.innerHTML = `
+                    <img class="avatar-img" src="${avatar || defaultAvatar}" alt="Avatar">
+                    <span class="p-name">${name} ${isPlayerHost ? '👑' : ''}</span>
                 `;
                 
+                const bottomOverlay = document.createElement('div');
+                bottomOverlay.className = 'player-overlay-bottom';
+                
+                // Nur Mitspieler bekommen die Punkteanzeige samt +- Buttons (falls Host oder jeder? - Host korrigiert mit +- Buttons)
+                let scoreHtml = `<span class="p-score">${score} Pkt.</span>`;
+                if (isHost) {
+                    scoreHtml += `
+                        <div class="score-adjuster">
+                            <button class="score-btn" onclick="adjustScore('${id}', -100)" title="100 abziehen">-</button>
+                            <button class="score-btn" onclick="adjustScore('${id}', 100)" title="100 hinzufügen">+</button>
+                        </div>
+                    `;
+                }
+                bottomOverlay.innerHTML = scoreHtml;
+
                 container.appendChild(video);
-                container.appendChild(info);
+                container.appendChild(topOverlay);
+                container.appendChild(bottomOverlay);
                 gridEl.appendChild(container);
             }
 
@@ -1267,7 +1358,10 @@
             }
 
             container.querySelector('.p-name').innerText = name + (isPlayerHost ? ' 👑' : '');
-            container.querySelector('.p-score').innerText = score + " Pkt.";
+            
+            const scoreEl = container.querySelector('.p-score');
+            if (scoreEl) scoreEl.innerText = score + " Pkt.";
+
             if (avatar) container.querySelector('.avatar-img').src = avatar;
         }
 
