@@ -1067,7 +1067,7 @@
             });
         }
 
-        function joinGame() {
+       function joinGame() {
             const hostId = document.getElementById('joinId').value.trim().toUpperCase();
             if (!hostId) return alert("Bitte Code eingeben!");
 
@@ -1076,7 +1076,12 @@
             initBoard();
 
             peer = new Peer();
-            peer.on('open', () => {
+            peer.on('open', (id) => {
+                players[id] = { name: getMyName(), score: 0, avatar: uploadedAvatarBase64, isHost: false };
+                if (myStream) {
+                    addOrUpdatePlayerCard(id, getMyName(), 0, myStream, uploadedAvatarBase64, true, false);
+                }
+
                 hostConn = peer.connect(hostId);
                 hostConn.on('open', () => {
                     hostConn.send({ type: 'JOIN', name: getMyName(), avatar: uploadedAvatarBase64 });
@@ -1098,7 +1103,7 @@
                 });
             });
         }
-
+        
         function handleDataFromClient(data, conn) {
             if (data.type === 'JOIN') {
                 players[conn.peer] = { name: data.name, score: 0, avatar: data.avatar, isHost: false };
