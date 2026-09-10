@@ -1316,10 +1316,15 @@
             if (isHost) broadcast({ type: 'CLOSE_QUESTION' });
         }
 
-        function addOrUpdatePlayerCard(id, name, score, stream, avatar = null, isMe = false, isPlayerHost = false) {
+      function addOrUpdatePlayerCard(id, name, score, stream, avatar = null, isMe = false, isPlayerHost = false) {
             const containerId = isPlayerHost ? 'hostSidebarContainer' : 'playersGridBottom';
             const gridEl = document.getElementById(containerId);
             if (!gridEl) return;
+
+            if (stream) {
+                if (isMe) myStream = stream;
+                else remoteStreams[id] = stream;
+            }
 
             let container = gridEl.querySelector('#player-card-' + id);
             if (!container) {
@@ -1344,7 +1349,6 @@
                 const bottomOverlay = document.createElement('div');
                 bottomOverlay.className = 'player-overlay-bottom';
                 
-                // Nur Mitspieler bekommen die Punkteanzeige samt +- Buttons (falls Host oder jeder? - Host korrigiert mit +- Buttons)
                 let scoreHtml = `<span class="p-score">${score} Pkt.</span>`;
                 if (isHost) {
                     scoreHtml += `
@@ -1362,9 +1366,10 @@
                 gridEl.appendChild(container);
             }
 
-            if (stream) {
+            const activeStream = stream || (isMe ? myStream : remoteStreams[id]);
+            if (activeStream) {
                 const v = container.querySelector('video');
-                if (v.srcObject !== stream) v.srcObject = stream;
+                if (v.srcObject !== activeStream) v.srcObject = activeStream;
             }
 
             container.querySelector('.p-name').innerText = name + (isPlayerHost ? ' 👑' : '');
