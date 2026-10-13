@@ -3,1413 +3,680 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Jeopardy Galaxy</title>
+    <title>Jeopardy - Galaxy Edition</title>
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Inter:wght@300;400;600;800&display=swap" rel="stylesheet">
     <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@500;700;900&family=Rajdhani:wght@600;700&display=swap" rel="stylesheet">
     <style>
         :root {
-            --bg-space: #030712;
-            --card-bg: rgba(15, 23, 42, 0.75);
-            --card-border: #1e293b;
-            --cyan-glow: #00f0ff;
-            --pink-glow: #ff007f;
-            --yellow-glow: #facc15;
-            --text-color: #f8fafc;
-            --danger: #ef4444;
-            --success: #22c55e;
+            --bg-dark: #050510;
+            --panel-bg: rgba(15, 15, 35, 0.75);
+            --border-glow: #00f3ff;
+            --accent-pink: #ff007f;
+            --accent-purple: #9d00ff;
+            --accent-blue: #00f3ff;
+            --accent-green: #00ff88;
+            --accent-yellow: #ffcc00;
+            --text-main: #ffffff;
+            --text-muted: #8a8ab0;
+            --gold: #ffd700;
         }
 
-        * {
-            box-sizing: border-box;
-            font-family: 'Rajdhani', sans-serif;
-        }
+        * { box-sizing: border-box; margin: 0; padding: 0; user-select: none; }
 
         body {
-            background-color: var(--bg-space);
-            color: var(--text-color);
-            margin: 0;
-            padding: 20px;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
+            font-family: 'Inter', sans-serif;
+            background-color: var(--bg-dark);
+            color: var(--text-main);
             min-height: 100vh;
             overflow-x: hidden;
-            position: relative;
+            display: flex; flex-direction: column; position: relative;
         }
 
-        #starCanvas {
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100vw;
-            height: 100vh;
-            pointer-events: none;
-            z-index: -1;
-            background: radial-gradient(circle at 50% 50%, #060919 0%, #020408 100%);
+        #starfield { position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; z-index: 0; pointer-events: none; }
+
+        .app-container {
+            position: relative; z-index: 1; display: flex; flex-direction: column;
+            min-height: 100vh; padding: 15px; max-width: 1600px; margin: 0 auto; width: 100%;
         }
 
-        .header-bar {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            width: 100%;
-            max-width: 1300px;
-            margin-bottom: 20px;
-            padding: 10px 0;
-            border-bottom: 1px solid rgba(0, 240, 255, 0.2);
-            z-index: 10;
+        header {
+            display: flex; justify-content: space-between; align-items: center;
+            padding: 10px 20px; background: var(--panel-bg);
+            border: 1px solid rgba(0, 243, 255, 0.3); border-radius: 12px;
+            backdrop-filter: blur(10px); margin-bottom: 15px; box-shadow: 0 0 20px rgba(0, 243, 255, 0.15);
         }
 
-        .logo-title {
-            font-family: 'Orbitron', sans-serif;
-            font-size: 24px;
-            font-weight: 900;
-            letter-spacing: 2px;
-            color: var(--cyan-glow);
-            text-shadow: 0 0 10px rgba(0, 240, 255, 0.5);
-            white-space: nowrap;
+        h1 {
+            font-family: 'Orbitron', sans-serif; font-size: 1.6rem; font-weight: 900; letter-spacing: 2px;
+            background: linear-gradient(90deg, #00f3ff, #ff007f);
+            -webkit-background-clip: text; -webkit-text-fill-color: transparent; text-transform: uppercase;
         }
 
-        .logo-title span {
-            color: var(--pink-glow);
-            text-shadow: 0 0 10px rgba(255, 0, 127, 0.5);
+        .controls-group { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+
+        .btn {
+            background: rgba(0, 243, 255, 0.1); border: 1px solid var(--accent-blue);
+            color: var(--text-main); padding: 8px 16px; border-radius: 6px;
+            font-family: 'Orbitron', sans-serif; font-size: 0.8rem; cursor: pointer;
+            transition: all 0.2s ease; display: flex; align-items: center; gap: 6px;
+        }
+        .btn:hover { background: var(--accent-blue); color: #000; box-shadow: 0 0 15px var(--accent-blue); }
+
+        .btn-pink { border-color: var(--accent-pink); background: rgba(255, 0, 127, 0.1); }
+        .btn-pink:hover { background: var(--accent-pink); color: #fff; box-shadow: 0 0 15px var(--accent-pink); }
+
+        .btn-green { border-color: var(--accent-green); background: rgba(0, 255, 136, 0.1); }
+        .btn-green:hover { background: var(--accent-green); color: #000; box-shadow: 0 0 15px var(--accent-green); }
+
+        .btn-yellow { border-color: var(--accent-yellow); background: rgba(255, 204, 0, 0.1); color: var(--accent-yellow); }
+        .btn-yellow:hover { background: var(--accent-yellow); color: #000; box-shadow: 0 0 15px var(--accent-yellow); }
+
+        .btn-buzzer {
+            background: linear-gradient(135deg, #ff007f, #ffcc00);
+            border: none; color: #fff; font-size: 1.4rem; font-weight: 900;
+            padding: 12px 28px; border-radius: 50px;
+            box-shadow: 0 0 25px rgba(255, 0, 127, 0.6); cursor: pointer; animation: pulse 1.5s infinite alternate;
         }
 
-        .nav-buttons {
-            display: flex;
-            gap: 8px;
-            align-items: center;
-            flex-wrap: nowrap;
+        @keyframes pulse {
+            0% { box-shadow: 0 0 15px rgba(255,0,127,0.5); }
+            100% { box-shadow: 0 0 30px rgba(255,204,0,0.9); }
         }
 
-        button, label.btn-file {
-            background: linear-gradient(135deg, rgba(30, 41, 59, 0.8), rgba(15, 23, 42, 0.9));
-            color: var(--text-color);
-            border: 1px solid var(--cyan-glow);
-            padding: 8px 14px;
-            border-radius: 6px;
-            font-family: 'Orbitron', sans-serif;
-            font-size: 13px;
-            font-weight: 700;
-            cursor: pointer;
+        .room-badge {
+            background: rgba(157, 0, 255, 0.2); border: 1px solid var(--accent-purple);
+            padding: 6px 12px; border-radius: 6px; font-family: 'Orbitron', sans-serif;
+            font-size: 0.85rem; color: #d896ff; display: flex; align-items: center; gap: 8px;
+        }
+
+        .room-toggle-btn {
+            background: transparent; border: 1px solid var(--accent-purple); color: #fff;
+            border-radius: 4px; padding: 2px 6px; cursor: pointer; font-size: 0.85rem;
             transition: all 0.2s ease;
-            box-shadow: 0 0 8px rgba(0, 240, 255, 0.2);
-            display: inline-flex;
-            align-items: center;
-            gap: 6px;
-            white-space: nowrap;
+        }
+        .room-toggle-btn:hover { background: var(--accent-purple); }
+
+        .game-board {
+            display: grid; grid-template-columns: repeat(5, 1fr); gap: 10px; flex-grow: 1; margin-bottom: 15px;
         }
 
-        button:hover, label.btn-file:hover {
-            background: var(--cyan-glow);
-            color: #000;
-            box-shadow: 0 0 15px var(--cyan-glow);
-            transform: translateY(-2px);
+        .category-card {
+            background: var(--panel-bg); border: 1px solid rgba(255, 255, 255, 0.15);
+            border-radius: 8px; padding: 12px 8px; text-align: center;
+            font-family: 'Orbitron', sans-serif; font-weight: 700; font-size: 0.95rem;
+            color: #fff; display: flex; align-items: center; justify-content: center;
+            min-height: 60px; box-shadow: 0 4px 15px rgba(0,0,0,0.5);
+            background: linear-gradient(180deg, rgba(20,20,50,0.8) 0%, rgba(10,10,25,0.9) 100%);
         }
 
-        button:disabled {
-            opacity: 0.4;
-            cursor: not-allowed;
-            transform: none;
-            box-shadow: none;
+        .point-card {
+            background: var(--panel-bg); border: 1px solid rgba(0, 243, 255, 0.2);
+            border-radius: 8px; display: flex; flex-direction: column; align-items: center; justify-content: center;
+            font-family: 'Orbitron', sans-serif; font-size: 1.8rem; font-weight: 900; color: var(--accent-blue);
+            cursor: pointer; transition: all 0.25s ease; min-height: 85px; position: relative;
         }
 
-        .main-layout {
-            display: grid;
-            grid-template-columns: 3fr 1fr;
-            gap: 20px;
-            width: 100%;
-            max-width: 1300px;
-            z-index: 10;
+        .point-card:hover:not(.played) {
+            transform: scale(1.03); border-color: var(--accent-blue);
+            box-shadow: 0 0 20px rgba(0, 243, 255, 0.4); background: rgba(0, 243, 255, 0.15);
         }
 
-        .board {
-            display: grid;
-            grid-template-columns: repeat(5, 1fr);
-            gap: 10px;
-            background: rgba(15, 23, 42, 0.6);
-            padding: 12px;
-            border-radius: 12px;
-            border: 1px solid rgba(0, 240, 255, 0.3);
-            box-shadow: 0 0 25px rgba(0, 0, 0, 0.8);
-            backdrop-filter: blur(4px);
-        }
+        .point-card.played { opacity: 0.25; border-color: transparent; cursor: default; background: rgba(5, 5, 15, 0.5); }
+        .media-icon-badge { position: absolute; top: 4px; right: 4px; font-size: 0.75rem; opacity: 0.8; }
 
-        .category-header {
-            background: rgba(15, 23, 42, 0.9);
-            border: 1px solid rgba(0, 240, 255, 0.4);
-            padding: 15px 5px;
-            text-align: center;
-            font-family: 'Orbitron', sans-serif;
-            font-size: 14px;
-            font-weight: 700;
-            border-radius: 6px;
-            color: #fff;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            min-height: 60px;
-            text-transform: uppercase;
-        }
-
-        .card {
-            background: rgba(15, 23, 42, 0.8);
-            border: 1px solid rgba(0, 240, 255, 0.3);
-            color: var(--cyan-glow);
-            font-family: 'Orbitron', sans-serif;
-            font-size: 28px;
-            font-weight: 900;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            height: 90px;
-            border-radius: 6px;
-            cursor: pointer;
-            user-select: none;
-            transition: all 0.2s ease;
-            text-shadow: 0 0 8px rgba(0, 240, 255, 0.6);
-        }
-
-        body:not(.is-host-user) .card {
-            cursor: default !important;
-        }
-        body:not(.is-host-user) .card:hover {
-            border-color: rgba(0, 240, 255, 0.3) !important;
-            color: var(--cyan-glow) !important;
-            text-shadow: 0 0 8px rgba(0, 240, 255, 0.6) !important;
-            transform: none !important;
-            background: rgba(15, 23, 42, 0.8) !important;
-        }
-
-        .card:hover {
-            border-color: var(--pink-glow);
-            color: var(--pink-glow);
-            text-shadow: 0 0 12px var(--pink-glow);
-            transform: scale(1.02);
-            background: rgba(255, 0, 127, 0.1);
-        }
-
-        .card.used {
-            background: rgba(15, 23, 42, 0.3);
-            border-color: rgba(255, 255, 255, 0.05);
-            color: rgba(255, 255, 255, 0.1);
-            text-shadow: none;
-            cursor: not-allowed;
-            transform: none;
-        }
-
-        .sidebar {
-            display: flex;
-            flex-direction: column;
-            gap: 15px;
-        }
-
-        .players-grid {
-            display: flex;
-            flex-direction: column;
-            gap: 12px;
-        }
-
-        .bottom-players-container {
-            width: 100%;
-            display: flex;
-            flex-direction: column;
-            gap: 10px;
-            margin-top: 25px;
-            max-width: 1300px;
-        }
-
-        .players-row {
-            display: flex;
-            gap: 15px;
-            overflow-x: auto;
-            padding-bottom: 5px;
-            justify-content: center;
-            flex-wrap: wrap;
+        .players-container {
+            display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 12px; margin-top: auto;
         }
 
         .player-card {
-            background: #000;
-            border: 1px solid rgba(0, 240, 255, 0.3);
-            border-radius: 8px;
-            position: relative;
-            box-shadow: 0 4px 15px rgba(0,0,0,0.5);
-            width: 220px;
-            height: 140px;
-            flex-shrink: 0;
-            overflow: hidden;
-            display: flex;
-            flex-direction: column;
-            justify-content: space-between;
+            background: var(--panel-bg); border: 1px solid rgba(255, 0, 127, 0.3); border-radius: 10px;
+            overflow: hidden; display: flex; flex-direction: column; position: relative; backdrop-filter: blur(10px);
         }
 
-        .player-card.active-turn {
-            border-color: var(--yellow-glow);
-            box-shadow: 0 0 15px var(--yellow-glow);
-        }
+        .video-wrapper { width: 100%; height: 100px; background: #000; position: relative; }
+        .video-placeholder { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; color: var(--text-muted); font-size: 2rem; background: radial-gradient(circle, rgba(30,30,60,1) 0%, rgba(5,5,15,1) 100%); }
 
-        .player-card.buzzed {
-            border-color: var(--pink-glow);
-            box-shadow: 0 0 20px var(--pink-glow);
-        }
+        .player-info { padding: 8px; display: flex; flex-direction: column; align-items: center; gap: 4px; background: rgba(10, 10, 25, 0.8); }
+        .player-name { font-family: 'Orbitron', sans-serif; font-size: 0.9rem; color: var(--text-main); font-weight: 700; }
+        .player-score { font-family: 'Orbitron', sans-serif; font-size: 1.3rem; font-weight: 900; color: var(--gold); }
 
-        .video-box {
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            object-fit: cover;
-            z-index: 1;
-        }
+        .score-controls { display: flex; gap: 5px; margin-top: 4px; }
+        .score-btn { background: rgba(255, 255, 255, 0.08); border: 1px solid rgba(255, 255, 255, 0.2); color: #fff; width: 24px; height: 24px; border-radius: 4px; cursor: pointer; font-weight: bold; display: flex; align-items: center; justify-content: center; }
 
-        .player-overlay-top {
-            position: absolute;
-            top: 8px;
-            left: 8px;
-            z-index: 2;
-            display: flex;
-            align-items: center;
-            gap: 6px;
-            background: rgba(3, 7, 18, 0.65);
-            padding: 3px 8px 3px 3px;
-            border-radius: 20px;
-            border: 1px solid rgba(0, 240, 255, 0.3);
-            backdrop-filter: blur(4px);
-            max-width: 85%;
-        }
+        .modal-overlay { position: fixed; inset: 0; background: rgba(2, 2, 8, 0.85); backdrop-filter: blur(12px); z-index: 100; display: flex; align-items: center; justify-content: center; padding: 20px; opacity: 0; pointer-events: none; transition: opacity 0.3s ease; }
+        .modal-overlay.active { opacity: 1; pointer-events: auto; }
 
-        .avatar-img {
-            width: 24px;
-            height: 24px;
-            border-radius: 50%;
-            object-fit: cover;
-            border: 1px solid var(--cyan-glow);
-            flex-shrink: 0;
-        }
+        .modal-card { background: rgba(12, 12, 30, 0.95); border: 2px solid var(--accent-blue); border-radius: 16px; width: 100%; max-width: 800px; padding: 25px; box-shadow: 0 0 40px rgba(0, 243, 255, 0.25); display: flex; flex-direction: column; align-items: center; text-align: center; max-height: 90vh; overflow-y: auto; position: relative; }
 
-        .p-name { 
-            font-weight: 700; 
-            font-size: 12px; 
-            white-space: nowrap; 
-            overflow: hidden; 
-            text-overflow: ellipsis; 
-            color: #fff;
-        }
+        .modal-category { font-family: 'Orbitron', sans-serif; color: var(--text-muted); font-size: 0.9rem; letter-spacing: 2px; }
+        .modal-points { font-family: 'Orbitron', sans-serif; color: var(--accent-blue); font-size: 2rem; font-weight: 900; margin-bottom: 15px; }
+        .modal-content-box { font-size: 1.4rem; font-weight: 600; line-height: 1.4; margin: 10px 0; width: 100%; }
 
-        .player-overlay-bottom {
-            position: absolute;
-            bottom: 8px;
-            left: 50%;
-            transform: translateX(-50%);
-            z-index: 2;
-            background: rgba(3, 7, 18, 0.75);
-            border: 1px solid var(--cyan-glow);
-            padding: 3px 10px;
-            border-radius: 12px;
-            backdrop-filter: blur(4px);
-            display: flex;
-            align-items: center;
-            gap: 6px;
-        }
+        .media-container { margin: 10px 0; max-width: 100%; }
+        .media-container img { max-height: 250px; max-width: 100%; border-radius: 8px; border: 1px solid rgba(255,255,255,0.2); object-fit: contain; }
+        .media-container audio { width: 100%; max-width: 400px; margin-top: 5px; }
 
-        .p-score { 
-            font-family: 'Orbitron', sans-serif; 
-            color: var(--yellow-glow); 
-            font-weight: 700; 
-            font-size: 12px; 
-            white-space: nowrap;
-        }
+        .answer-box { margin-top: 15px; padding: 15px; background: rgba(0, 255, 136, 0.08); border: 1px dashed var(--accent-green); border-radius: 10px; color: var(--accent-green); font-size: 1.2rem; font-weight: 700; width: 100%; display: none; }
+        .answer-box.active { display: block; }
 
-        .player-card.host-card .player-overlay-bottom {
-            display: none !important;
-        }
+        .buzzer-queue-box { margin: 12px 0; padding: 10px; background: rgba(255, 204, 0, 0.05); border: 1px solid var(--accent-yellow); border-radius: 8px; width: 100%; text-align: left; }
+        .buzzer-queue-title { font-family: 'Orbitron', sans-serif; font-size: 0.8rem; color: var(--accent-yellow); margin-bottom: 6px; }
+        .queue-item { display: flex; justify-content: space-between; padding: 4px 8px; background: rgba(255,255,255,0.05); margin-bottom: 4px; border-radius: 4px; font-size: 0.85rem; }
+        .queue-item.active-turn { border: 1px solid var(--accent-green); background: rgba(0, 255, 136, 0.15); font-weight: bold; }
 
-        .score-adjuster {
-            display: flex;
-            gap: 3px;
-            align-items: center;
-        }
+        .editor-grid { display: flex; flex-direction: column; gap: 15px; width: 100%; text-align: left; max-height: 55vh; overflow-y: auto; padding-right: 5px; }
+        .editor-cat-block { background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.1); border-radius: 8px; padding: 12px; }
+        .editor-input-group { display: flex; flex-direction: column; gap: 4px; margin-bottom: 8px; }
+        .editor-input-group label { font-size: 0.75rem; color: var(--text-muted); font-family: 'Orbitron', sans-serif; }
 
-        .score-btn {
-            background: rgba(15, 23, 42, 0.9);
-            color: var(--text-color);
-            border: 1px solid var(--cyan-glow);
-            border-radius: 4px;
-            width: 18px;
-            height: 18px;
-            font-size: 10px;
-            font-weight: 900;
-            display: inline-flex;
-            align-items: center;
-            justify-content: center;
-            cursor: pointer;
-            padding: 0;
-            box-shadow: none;
-        }
+        .media-inputs { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 4px; }
 
-        .score-btn:hover {
-            background: var(--cyan-glow);
-            color: #000;
-            transform: none;
-            box-shadow: 0 0 6px var(--cyan-glow);
-        }
+        input[type="text"], input[type="number"] { background: rgba(0,0,0,0.5); border: 1px solid rgba(0, 243, 255, 0.3); color: #fff; padding: 8px; border-radius: 4px; font-family: inherit; font-size: 0.85rem; width: 100%; }
+        input[type="file"] { font-size: 0.75rem; color: var(--text-muted); }
 
-        .host-sidebar-panel {
-            background: rgba(15, 23, 42, 0.85);
-            border: 1px solid rgba(0, 240, 255, 0.3);
-            border-radius: 8px;
-            padding: 12px;
-            display: flex;
-            flex-direction: column;
-            gap: 10px;
-            backdrop-filter: blur(4px);
-        }
-
-        .modal {
-            position: fixed;
-            top: 0; left: 0; right: 0; bottom: 0;
-            background: rgba(3, 7, 18, 0.85);
-            display: none;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            z-index: 100;
-            padding: 20px;
-            backdrop-filter: blur(5px);
-        }
-
-        .modal-content {
-            background: rgba(15, 23, 42, 0.95);
-            border: 1px solid var(--cyan-glow);
-            padding: 30px;
-            border-radius: 12px;
-            max-width: 650px;
-            width: 90%;
-            text-align: center;
-            box-shadow: 0 0 30px rgba(0, 240, 255, 0.3);
-            max-height: 90vh;
-            overflow-y: auto;
-        }
-
-        .question-text { font-size: 22px; margin: 15px 0; line-height: 1.4; }
-        .question-media { max-width: 100%; max-height: 200px; border-radius: 6px; margin: 8px auto; border: 1px solid rgba(0,240,255,0.3); display: none; }
-        .question-audio { width: 100%; margin: 8px 0; display: none; }
-        .answer-container { margin-top: 15px; border-top: 1px dashed rgba(0,240,255,0.2); padding-top: 10px; display: none; }
-        .answer-text { font-size: 18px; color: var(--yellow-glow); font-weight: bold; }
-
-        .host-controls {
-            margin-top: 15px;
-            padding: 12px;
-            background: rgba(255, 255, 255, 0.03);
-            border: 1px dashed rgba(0, 240, 255, 0.3);
-            border-radius: 8px;
-            display: flex;
-            flex-direction: column;
-            gap: 10px;
-        }
-
-        select, input[type="text"], textarea, input[type="number"] {
-            background: #0f172a;
-            color: #fff;
-            border: 1px solid var(--cyan-glow);
-            padding: 10px;
-            border-radius: 6px;
-            font-size: 15px;
-        }
-
-        .buzzer-btn {
-            width: 100%;
-            padding: 15px;
-            font-size: 18px;
-            font-family: 'Orbitron', sans-serif;
-            font-weight: 900;
-            border-radius: 8px;
-            cursor: not-allowed;
-            background: linear-gradient(135deg, #334155, #1e293b);
-            border-color: #475569;
-            color: #94a3b8;
-            box-shadow: none;
-            transition: all 0.2s ease;
-        }
-
-        .buzzer-btn.active {
-            background: linear-gradient(135deg, #ef4444, #b91c1c);
-            border-color: #fca5a5;
-            color: white;
-            cursor: pointer;
-            box-shadow: 0 0 20px rgba(239, 68, 68, 0.8);
-        }
-
-        .settings-box {
-            background: rgba(15, 23, 42, 0.98);
-            border: 2px solid var(--cyan-glow);
-            padding: 30px;
-            border-radius: 14px;
-            width: 850px;
-            max-width: 95%;
-            display: flex;
-            flex-direction: column;
-            gap: 20px;
-            max-height: 88vh;
-            overflow-y: auto;
-            box-shadow: 0 0 40px rgba(0, 240, 255, 0.25);
-        }
-
-        .settings-box label {
-            font-size: 16px;
-            font-weight: 700;
-            color: var(--cyan-glow);
-            display: flex;
-            flex-direction: column;
-            gap: 6px;
-        }
-
-        .editor-category-block {
-            background: rgba(0, 0, 0, 0.3);
-            border: 1px solid rgba(0, 240, 255, 0.3);
-            padding: 18px;
-            border-radius: 10px;
-            margin-bottom: 15px;
-            display: flex;
-            flex-direction: column;
-            gap: 15px;
-        }
-
-        .editor-card-row {
-            display: grid;
-            grid-template-columns: 100px 1fr 1fr;
-            gap: 12px;
-            align-items: center;
-            background: rgba(15, 23, 42, 0.9);
-            padding: 12px;
-            border-radius: 8px;
-            border: 1px solid rgba(255, 255, 255, 0.08);
-        }
-
-        @media (max-width: 768px) {
-            .editor-card-row { grid-template-columns: 1fr; }
-        }
+        .close-modal-btn { position: absolute; top: 15px; right: 15px; background: transparent; border: none; color: var(--text-muted); font-size: 1.5rem; cursor: pointer; }
     </style>
 </head>
-<body class="">
+<body>
 
-    <canvas id="starCanvas"></canvas>
+    <canvas id="starfield"></canvas>
 
-    <div class="header-bar">
-        <div class="logo-title">JEOPARDY <span>GALAXY</span></div>
-        <div class="nav-buttons">
-            <button onclick="resetGame()" id="btnReset" style="display:none;">🔄 Neustart</button>
-            <button onclick="openEditor()" id="btnEditor" style="display:none;">⚙️ Editor</button>
-            <button onclick="openSettings()">📷 Einstellungen</button>
-            <button id="btnHost" onclick="createLobby()">👑 Lobby Erstellen</button>
-            <div id="roomCodeContainer" style="display:none; align-items:center; gap:4px; background: rgba(0,0,0,0.4); padding: 4px 8px; border-radius: 6px; border: 1px solid var(--cyan-glow);">
-                <span id="roomCodeDisplay" style="font-family: Orbitron; font-size: 13px; color: var(--yellow-glow); letter-spacing: 1px;">••••••</span>
-                <button onclick="toggleRoomCodeVisibility()" id="toggleCodeBtn" style="padding: 4px 6px; font-size: 10px;">👁️</button>
-            </div>
-            <input type="text" id="joinId" placeholder="Raum-Code..." style="width: 115px; padding: 8px; font-size: 13px;">
-            <button onclick="joinGame()">🎮 Beitreten</button>
-        </div>
-    </div>
-
-    <div class="main-layout">
-        <div class="board" id="board"></div>
-
-        <div class="sidebar">
-            <h3 style="font-family: 'Orbitron', sans-serif; margin: 0; color: var(--cyan-glow); font-size: 14px;">HOST</h3>
-            <div class="players-grid" id="hostSidebarContainer"></div>
-            
-            <div class="host-sidebar-panel">
-                <span style="font-family: 'Orbitron', sans-serif; font-size: 11px; color: var(--cyan-glow);">⚡ BUZZER & QUEUE</span>
-                <button id="buzzerBtn" class="buzzer-btn" onclick="sendBuzzer()">🔔 BUZZER!</button>
-                <div id="turnStatus" style="font-size: 12px; font-weight: bold; color: var(--yellow-glow); text-align: center; min-height: 20px;">Bereit</div>
-            </div>
-        </div>
-    </div>
-
-    <div class="bottom-players-container" id="bottomPlayersWrapper">
-        <h3 style="font-family: 'Orbitron', sans-serif; margin: 0; color: var(--cyan-glow); text-align: center; font-size: 15px;">MITSPIELER</h3>
-        <div class="players-row" id="playersGridBottom"></div>
-    </div>
-
-    <!-- Fragen Modal -->
-    <div class="modal" id="questionModal">
-        <div class="modal-content">
-            <div id="modalCategory" style="color: var(--pink-glow); font-family: 'Orbitron', sans-serif; font-weight: 700; font-size: 18px;">KATEGORIE</div>
-            
-            <div class="question-text" id="modalQuestion">Frage wird geladen...</div>
-            <img id="modalQuestionImg" class="question-media" src="" alt="Fragen Bild">
-            <audio id="modalQuestionAudio" class="question-audio" controls src=""></audio>
-
-            <div id="hostQuestionControls" class="host-controls" style="display: none;">
-                <div id="hostRatingBtns" style="display: flex; gap: 8px; justify-content: center; margin-top: 5px;">
-                    <button style="border-color: var(--success); padding: 8px 14px;" onclick="rateAnswer(true)">✅ Richtig</button>
-                    <button style="border-color: var(--danger); padding: 8px 14px;" onclick="rateAnswer(false)">❌ Falsch / Weiter</button>
+    <div class="app-container">
+        <header>
+            <h1>Jeopardy <span style="font-size:0.7em; color:var(--accent-pink);">Galaxy</span></h1>
+            <div class="controls-group">
+                <button class="btn btn-yellow" onclick="restartGame()">🔄 Neustart</button>
+                <div id="roomBadge" class="room-badge" style="display:none;">
+                    <span>Raum:</span>
+                    <strong id="roomCodeDisplay" style="color:#fff;">-</strong>
+                    <button id="toggleCodeBtn" class="room-toggle-btn" onclick="toggleRoomCode()" title="Raumcode ein-/ausblenden">🙈</button>
                 </div>
-                
-                <div style="display: flex; gap: 8px; justify-content: center; margin-top: 5px;">
-                    <button onclick="toggleAnswer()" style="font-size: 12px; padding: 8px;">👁️ Antwort an/aus</button>
-                    <button style="border-color: var(--danger); font-size: 12px; padding: 8px;" onclick="closeModal()">Frage Schließen</button>
+                <button class="btn btn-green" onclick="openLobbyModal()">🎮 Multiplayer</button>
+                <button class="btn" onclick="openEditor()">⚙️ Editor & Medien</button>
+            </div>
+        </header>
+
+        <main class="game-board" id="boardGrid"></main>
+        <footer class="players-container" id="playersRow"></footer>
+    </div>
+
+    <!-- Question Modal -->
+    <div class="modal-overlay" id="questionModal">
+        <div class="modal-card">
+            <button class="close-modal-btn" onclick="closeQuestionModal()">&times;</button>
+            <div class="modal-category" id="modalCat">Kategorie</div>
+            <div class="modal-points" id="modalPoints">400</div>
+            
+            <div class="modal-content-box" id="modalQuestionText">Fragetext</div>
+            <div class="media-container" id="modalQuestionMedia"></div>
+
+            <button class="btn btn-buzzer" style="margin:10px 0;" onclick="triggerBuzzer()">🔔 BUZZER!</button>
+
+            <div class="buzzer-queue-box">
+                <div class="buzzer-queue-title">⚡ Buzzer Reihenfolge:</div>
+                <div id="queueListDisplay"><i>Noch niemand gebuzzert...</i></div>
+            </div>
+
+            <div class="answer-box" id="modalAnswerBox">
+                <div id="modalAnswerText">Antworttext</div>
+                <div class="media-container" id="modalAnswerMedia"></div>
+            </div>
+
+            <div class="modal-actions" style="gap:10px; margin-top:15px; flex-wrap:wrap; justify-content:center; display:flex;">
+                <button class="btn btn-pink" onclick="revealAnswer()">Lösung anzeigen</button>
+                <button class="btn btn-green" onclick="awardPointsToCurrent(true)">✓ Richtig (+Punkte) & Ende</button>
+                <button class="btn btn-pink" onclick="penaltyAndNextInQueue()">❌ Falsch (-50%) & Nächster</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Editor Modal -->
+    <div class="modal-overlay" id="editorModal">
+        <div class="modal-card" style="max-width:900px;">
+            <button class="close-modal-btn" onclick="closeEditorModal()">&times;</button>
+            <h2 style="font-family:'Orbitron'; color:var(--accent-blue); margin-bottom:15px;">Fragen, Punkte & Medien Editor</h2>
+            
+            <div class="editor-grid" id="editorList"></div>
+
+            <!-- TOOLBAR BUTTONS FÜR IMPORT/EXPORT & RESET -->
+            <div class="modal-actions" style="margin-top:15px; gap:8px; display:flex; flex-wrap:wrap; justify-content:space-between; width:100%;">
+                <div style="display:flex; gap:8px;">
+                    <button class="btn btn-yellow" onclick="resetToDefaultData()">🔄 Auf Standard zurücksetzen</button>
+                    <button class="btn" onclick="exportQuestionsJSON()">💾 JSON Export</button>
+                    <label class="btn" style="cursor:pointer; border-color:var(--accent-purple);">
+                        📥 JSON Import
+                        <input type="file" accept=".json" style="display:none;" onchange="importQuestionsJSON(event)">
+                    </label>
                 </div>
-            </div>
-
-            <div class="answer-container" id="modalAnswerContainer">
-                <div class="answer-text" id="modalAnswerText">Antwort: ...</div>
-                <img id="modalAnswerImg" class="question-media" src="" alt="Antwort Bild">
-                <audio id="modalAnswerAudio" class="question-audio" controls src=""></audio>
+                <button class="btn btn-green" onclick="saveEditorData()"> Speichern</button>
             </div>
         </div>
     </div>
 
-    <!-- Kamera & Profil Einstellungen Modal -->
-    <div class="modal" id="settingsModal">
-        <div class="settings-box" style="width: 600px;">
-            <h3 style="font-family: Orbitron; color: var(--cyan-glow); margin:0; font-size: 22px;">📷 KAMERA & PROFIL</h3>
-            
-            <label>Dein Anzeigename:
-                <input type="text" id="usernameInput" value="Spieler 1">
-            </label>
-
-            <label>Profilbild (von Gerät hochladen):
-                <input type="file" id="avatarFileInput" accept="image/*" style="display:none;" onchange="handleFileUpload(event)">
-                <label class="btn-file" for="avatarFileInput" style="width:100%; justify-content:center; padding: 12px;">📁 Bild auswählen...</label>
-            </label>
-            <div id="avatarPreviewContainer" style="display:none; align-items:center; gap:12px;">
-                <img id="avatarPreview" class="avatar-img" src="" alt="Preview" style="width: 48px; height: 48px;">
-                <span style="font-size:14px; color:var(--success); font-weight:bold;">Profilbild erfolgreich geladen!</span>
-            </div>
-
-            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
-                <label>Kamera:
-                    <select id="videoSource" style="width:100%;"></select>
-                </label>
-                <label>Mikrofon:
-                    <select id="audioSource" style="width:100%;"></select>
-                </label>
-            </div>
-
-            <div style="display: flex; gap: 15px; margin-top: 15px;">
-                <button style="flex:1; border-color:var(--success); padding: 14px; font-size: 16px;" onclick="applySettings()">Speichern & Schließen</button>
-                <button style="border-color:var(--danger); padding: 14px; font-size: 16px;" onclick="closeSettings()">Abbrechen</button>
-            </div>
-        </div>
-    </div>
-
-    <!-- Fragen & Punkte Editor Modal -->
-    <div class="modal" id="editorModal">
-        <div class="settings-box" style="width: 950px;">
-            <h3 style="font-family: Orbitron; color: var(--cyan-glow); margin:0; font-size: 22px;">✏️ FRAGEN, PUNKTE & MEDIEN EDITOR</h3>
-            
-            <div style="display: flex; gap: 15px; background: rgba(0,0,0,0.3); padding: 12px; border-radius: 8px; border: 1px dashed rgba(0,240,255,0.3);">
-                <button style="flex:1; padding: 10px;" onclick="exportEditorJson()">💾 Fragen als JSON exportieren</button>
-                <label class="btn-file" style="flex:1; justify-content:center; margin:0; padding: 10px;" for="importEditorJsonInput">📂 Fragenset JSON importieren</label>
-                <input type="file" id="importEditorJsonInput" accept=".json" style="display:none;" onchange="importEditorJson(event)">
-            </div>
-
-            <div id="editorContent"></div>
-            
-            <div style="display: flex; gap: 15px; margin-top: 15px;">
-                <button style="flex:1; border-color:var(--success); padding: 14px; font-size: 16px;" onclick="saveEditorData()">Speichern & Übernehmen</button>
-                <button style="border-color:var(--danger); padding: 14px; font-size: 16px;" onclick="closeEditor()">Abbrechen</button>
+    <!-- Lobby Modal -->
+    <div class="modal-overlay" id="lobbyModal">
+        <div class="modal-card" style="max-width:500px;">
+            <button class="close-modal-btn" onclick="closeLobbyModal()">&times;</button>
+            <h2 style="font-family:'Orbitron'; color:var(--accent-purple); margin-bottom:15px;">Multiplayer</h2>
+            <div style="display:flex; flex-direction:column; gap:12px; width:100%; text-align:left;">
+                <div class="editor-input-group">
+                    <label>Dein Name</label>
+                    <input type="text" id="playerNameInput" placeholder="Name...">
+                </div>
+                <button class="btn btn-green" style="justify-content:center;" onclick="hostGame()">Spiel erstellen (Host)</button>
+                <div style="text-align:center; color:var(--text-muted); font-size:0.8rem;">- ODER -</div>
+                <div class="editor-input-group">
+                    <label>Raum Code</label>
+                    <input type="text" id="joinCodeInput" placeholder="Code..." style="text-transform:uppercase;">
+                </div>
+                <button class="btn btn-pink" style="justify-content:center;" onclick="joinGame()">Beitreten</button>
             </div>
         </div>
     </div>
 
     <script>
-        const canvas = document.getElementById('starCanvas');
-        const ctx = canvas.getContext('2d');
-        let stars = [];
-        const numStars = 120;
+        const DEFAULT_DATA = Array.from({ length: 5 }, (_, c) => ({
+            category: `Kategorie ${c + 1}`,
+            questions: [200, 400, 600, 800, 1000].map(pts => ({
+                points: pts,
+                question: `Frage für ${pts} Punkte in Kategorie ${c + 1}?`,
+                qImage: "", qAudio: "",
+                answer: `Antwort für ${pts} Punkte.`,
+                aImage: "", aAudio: "",
+                played: false
+            }))
+        }));
 
-        function resizeCanvas() {
-            canvas.width = window.innerWidth;
-            canvas.height = window.innerHeight;
-        }
-        window.addEventListener('resize', resizeCanvas);
-        resizeCanvas();
+        let gameData = JSON.parse(localStorage.getItem('jeopardy_data')) || DEFAULT_DATA;
+        let myId = 'local-user';
+        let players = [{ id: myId, name: 'Spieler 1', score: 0 }];
+        let buzzerQueue = [];
 
-        for (let i = 0; i < numStars; i++) {
-            stars.push({
-                x: Math.random() * canvas.width,
-                y: Math.random() * canvas.height,
-                radius: Math.random() * 1.5 + 0.5,
-                alpha: Math.random(),
-                speed: Math.random() * 0.005 + 0.002
-            });
-        }
-
-        function animateStars() {
-            ctx.clearRect(0, 0, canvas.width, canvas.height);
-            ctx.fillStyle = '#ffffff';
-            stars.forEach(star => {
-                star.alpha += star.speed;
-                if (star.alpha > 1 || star.alpha < 0.1) star.speed = -star.speed;
-                ctx.globalAlpha = Math.abs(star.alpha);
-                ctx.beginPath();
-                ctx.arc(star.x, star.y, star.radius, 0, Math.PI * 2);
-                ctx.fill();
-            });
-            requestAnimationFrame(animateStars);
-        }
-        animateStars();
-
-        const AudioContext = window.AudioContext || window.webkitAudioContext;
-        let audioCtx = null;
-
-        function initAudio() {
-            if (!audioCtx) audioCtx = new AudioContext();
-            if (audioCtx.state === 'suspended') audioCtx.resume();
-        }
-
-        function playSound(type) {
-            initAudio();
-            if (!audioCtx) return;
-            const osc = audioCtx.createOscillator();
-            const gain = audioCtx.createGain();
-            osc.connect(gain);
-            gain.connect(audioCtx.destination);
-            const now = audioCtx.currentTime;
-
-            if (type === 'click') {
-                osc.type = 'sine';
-                osc.frequency.setValueAtTime(600, now);
-                osc.frequency.exponentialRampToValueAtTime(200, now + 0.1);
-                gain.gain.setValueAtTime(0.3, now);
-                gain.gain.linearRampToValueAtTime(0.01, now + 0.1);
-                osc.start(now); osc.stop(now + 0.1);
-            } else if (type === 'buzzer') {
-                osc.type = 'sawtooth';
-                osc.frequency.setValueAtTime(150, now);
-                osc.frequency.setValueAtTime(120, now + 0.15);
-                gain.gain.setValueAtTime(0.5, now);
-                gain.gain.linearRampToValueAtTime(0.01, now + 0.4);
-                osc.start(now); osc.stop(now + 0.4);
-            } else if (type === 'correct') {
-                osc.type = 'triangle';
-                osc.frequency.setValueAtTime(523.25, now);
-                osc.frequency.setValueAtTime(659.25, now + 0.1);
-                osc.frequency.setValueAtTime(783.99, now + 0.2);
-                gain.gain.setValueAtTime(0.3, now);
-                gain.gain.linearRampToValueAtTime(0.01, now + 0.35);
-                osc.start(now); osc.stop(now + 0.35);
-            } else if (type === 'wrong') {
-                osc.type = 'sawtooth';
-                osc.frequency.setValueAtTime(200, now);
-                osc.frequency.setValueAtTime(140, now + 0.15);
-                gain.gain.setValueAtTime(0.4, now);
-                gain.gain.linearRampToValueAtTime(0.01, now + 0.3);
-                osc.start(now); osc.stop(now + 0.3);
-            }
-        }
-
-        let defaultGameData = [
-            { category: "Kategorie 1", cards: [
-                { points: 200, q: "Wie heißt die Hauptfigur in 'The Legend of Zelda'?", a: "Link", qMedia: "", qMediaType: "", aMedia: "", aMediaType: "" },
-                { points: 400, q: "Welches Spiel ist das meistveraufte aller Zeiten?", a: "Minecraft", qMedia: "", qMediaType: "", aMedia: "", aMediaType: "" },
-                { points: 600, q: "Wie heißt die Welt, in der World of Warcraft spielt?", a: "Azeroth", qMedia: "", qMediaType: "", aMedia: "", aMediaType: "" },
-                { points: 800, q: "Welcher Entwickler erstellte Fortnite?", a: "Epic Games", qMedia: "", qMediaType: "", aMedia: "", aMediaType: "" },
-                { points: 1000, q: "In welchem Jahr erschien die erste PlayStation in Japan?", a: "1994", qMedia: "", qMediaType: "", aMedia: "", aMediaType: "" }
-            ]},
-            { category: "Kategorie 2", cards: [
-                { points: 200, q: "Wofür steht die Abkürzung 'WWW'?", a: "World Wide Web", qMedia: "", qMediaType: "", aMedia: "", aMediaType: "" },
-                { points: 400, q: "In welchem Jahr wurde YouTube gegründet?", a: "2005", qMedia: "", qMediaType: "", aMedia: "", aMediaType: "" },
-                { points: 600, q: "Wie heißt das Maskottchen von GitHub?", a: "Octocat", qMedia: "", qMediaType: "", aMedia: "", aMediaType: "" },
-                { points: 800, q: "Welche Firma entwickelte das Android-Betriebssystem?", a: "Android Inc.", qMedia: "", qMediaType: "", aMedia: "", aMediaType: "" },
-                { points: 1000, q: "Was war die erste Nachricht über ARPANET?", a: "LO", qMedia: "", qMediaType: "", aMedia: "", aMediaType: "" }
-            ]},
-            { category: "Kategorie 3", cards: [
-                { points: 200, q: "Wie heißt der grüne Oger von DreamWorks?", a: "Shrek", qMedia: "", qMediaType: "", aMedia: "", aMediaType: "" },
-                { points: 400, q: "Welches Metall ist im Schild von Captain America?", a: "Vibranium", qMedia: "", qMediaType: "", aMedia: "", aMediaType: "" },
-                { points: 600, q: "Wie viele Ringe der Macht wurden den Menschen gegeben?", a: "9", qMedia: "", qMediaType: "", aMedia: "", aMediaType: "" },
-                { points: 800, q: "Wie heißt der Planet der Na'vi in Avatar?", a: "Pandora", qMedia: "", qMediaType: "", aMedia: "", aMediaType: "" },
-                { points: 1000, q: "Welcher Film gewann den ersten Oscar für den besten Animationsfilm?", a: "Shrek", qMedia: "", qMediaType: "", aMedia: "", aMediaType: "" }
-            ]},
-            { category: "Kategorie 4", cards: [
-                { points: 200, q: "Was bedeutet die Abkürzung CPU?", a: "Central Processing Unit", qMedia: "", qMediaType: "", aMedia: "", aMediaType: "" },
-                { points: 400, q: "Welches Betriebssystem basiert auf dem Linux-Kernel?", a: "Android", qMedia: "", qMediaType: "", aMedia: "", aMediaType: "" },
-                { points: 600, q: "Wofür steht RAM im Computer?", a: "Random Access Memory", qMedia: "", qMediaType: "", aMedia: "", aMediaType: "" },
-                { points: 800, q: "Welcher Programmiersprache verdanken wir die Web-Interaktivität?", a: "JavaScript", qMedia: "", qMediaType: "", aMedia: "", aMediaType: "" },
-                { points: 1000, q: "Was ist der Binärcode für die Zahl 10?", a: "1010", qMedia: "", qMediaType: "", aMedia: "", aMediaType: "" }
-            ]},
-            { category: "Kategorie 5", cards: [
-                { points: 200, q: "Welche Farbe hat der Bestseller-Buzzer?", a: "Rot", qMedia: "", qMediaType: "", aMedia: "", aMediaType: "" },
-                { points: 400, q: "Welches Franchise nutzt die Macht?", a: "Star Wars", qMedia: "", qMediaType: "", aMedia: "", aMediaType: "" },
-                { points: 600, q: "Was ist 42?", a: "Die Antwort auf alles", qMedia: "", qMediaType: "", aMedia: "", aMediaType: "" },
-                { points: 800, q: "Wie heißen die Punkte beim Jeopardy?", a: "Punkte / Pkt.", qMedia: "", qMediaType: "", aMedia: "", aMediaType: "" },
-                { points: 1000, q: "Welches Design hat diese Website?", a: "Galaxy / Cyberpunk", qMedia: "", qMediaType: "", aMedia: "", aMediaType: "" }
-            ]}
-        ];
-
-        let gameData = JSON.parse(JSON.stringify(defaultGameData));
         let peer = null;
         let connections = [];
-        let hostConn = null;
-        let isHost = false;
-        let myStream = null;
-        let remoteStreams = {};
-        let uploadedAvatarBase64 = null;
-        let players = {};
-        let activeCard = null;
-        let currentAnsweringPlayer = null;
-        let buzzerAllowed = false;
-        
-        let actualRoomId = "";
-        let roomCodeVisible = false;
+        let isHost = true;
+        let activeQuestion = null;
 
-        window.onload = async () => {
-            initBoard();
-            updateLayoutMode();
-            await startLocalStream();
-        };
+        const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
 
-        function updateLayoutMode() {
-            if (isHost) {
-                document.body.classList.add('is-host-user');
-                document.getElementById('btnReset').style.display = 'inline-flex';
-                document.getElementById('btnEditor').style.display = 'inline-flex';
-            } else {
-                document.body.classList.remove('is-host-user');
-                document.getElementById('btnReset').style.display = 'none';
-                document.getElementById('btnEditor').style.display = 'none';
+        function playSound(type) {
+            if (audioCtx.state === 'suspended') audioCtx.resume();
+            const osc = audioCtx.createOscillator(); const gain = audioCtx.createGain();
+            osc.connect(gain); gain.connect(audioCtx.destination);
+            const now = audioCtx.currentTime;
+            if (type === 'correct') {
+                osc.type = 'sine'; osc.frequency.setValueAtTime(523.25, now);
+                osc.frequency.setValueAtTime(659.25, now + 0.1); osc.frequency.setValueAtTime(783.99, now + 0.2);
+                gain.gain.setValueAtTime(0.2, now); gain.gain.exponentialRampToValueAtTime(0.001, now + 0.4);
+                osc.start(now); osc.stop(now + 0.4);
+            } else if (type === 'wrong') {
+                osc.type = 'sawtooth'; osc.frequency.setValueAtTime(160, now);
+                osc.frequency.linearRampToValueAtTime(70, now + 0.3);
+                gain.gain.setValueAtTime(0.3, now); gain.gain.exponentialRampToValueAtTime(0.001, now + 0.35);
+                osc.start(now); osc.stop(now + 0.35);
+            } else if (type === 'buzz') {
+                osc.type = 'triangle'; osc.frequency.setValueAtTime(440, now);
+                osc.frequency.setValueAtTime(880, now + 0.08);
+                gain.gain.setValueAtTime(0.3, now); gain.gain.exponentialRampToValueAtTime(0.001, now + 0.2);
+                osc.start(now); osc.stop(now + 0.2);
             }
         }
 
-        function getMyName() {
-            return document.getElementById('usernameInput').value || "Spieler";
+        // --- STARFIELD ---
+        const canvas = document.getElementById('starfield');
+        const ctx = canvas.getContext('2d');
+        let stars = [];
+        function initStarfield() {
+            canvas.width = window.innerWidth; canvas.height = window.innerHeight;
+            stars = Array.from({length: 120}, () => ({
+                x: Math.random() * canvas.width, y: Math.random() * canvas.height,
+                size: Math.random() * 2, speed: Math.random() * 0.5 + 0.1, alpha: Math.random()
+            }));
         }
-
-        function initBoard() {
-            const boardEl = document.getElementById('board');
-            boardEl.innerHTML = '';
-            
-            gameData.forEach(cat => {
-                const head = document.createElement('div');
-                head.className = 'category-header';
-                head.innerText = cat.category;
-                boardEl.appendChild(head);
+        function animateStarfield() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height); ctx.fillStyle = '#ffffff';
+            stars.forEach(s => {
+                ctx.globalAlpha = s.alpha; ctx.fillRect(s.x, s.y, s.size, s.size);
+                s.y += s.speed; if (s.y > canvas.height) s.y = 0;
             });
+            requestAnimationFrame(animateStarfield);
+        }
+        window.addEventListener('resize', initStarfield);
+        initStarfield(); animateStarfield();
 
-            for (let r = 0; r < 5; r++) {
-                gameData.forEach((cat, cIdx) => {
-                    const cardData = cat.cards[r];
+        function restartGame() {
+            if (confirm("Möchtest du das aktuelle Spiel neustarten? (Punkte werden auf 0 gesetzt, Karten wieder freigeschaltet)")) {
+                gameData.forEach(cat => cat.questions.forEach(q => q.played = false));
+                players.forEach(p => p.score = 0);
+                saveDataToStorage(); renderBoard(); renderPlayers();
+                broadcast({ type: 'RESTART', gameData, players });
+            }
+        }
+
+        function saveDataToStorage() {
+            try { localStorage.setItem('jeopardy_data', JSON.stringify(gameData)); }
+            catch (e) { alert("Speicher voll! Zu große Mediendateien hochgeladen."); }
+        }
+
+        function renderBoard() {
+            const board = document.getElementById('boardGrid'); board.innerHTML = '';
+            gameData.forEach(cat => {
+                const cEl = document.createElement('div');
+                cEl.className = 'category-card'; cEl.innerText = cat.category;
+                board.appendChild(cEl);
+            });
+            for (let row = 0; row < 5; row++) {
+                for (let col = 0; col < 5; col++) {
+                    const qData = gameData[col].questions[row];
                     const card = document.createElement('div');
-                    card.className = 'card' + (cardData.used ? ' used' : '');
-                    card.innerText = cardData.points;
-                    card.id = `card-${cIdx}-${r}`;
-                    
-                    if (isHost) {
-                        card.onclick = () => onCardClick(cIdx, r);
-                    }
-                    
-                    boardEl.appendChild(card);
-                });
-            }
-        }
-
-        function handleFileUpload(event) {
-            const file = event.target.files[0];
-            if (!file) return;
-            const reader = new FileReader();
-            reader.onload = function(e) {
-                uploadedAvatarBase64 = e.target.result;
-                document.getElementById('avatarPreview').src = uploadedAvatarBase64;
-                document.getElementById('avatarPreviewContainer').style.display = 'flex';
-            };
-            reader.readAsDataURL(file);
-        }
-
-        function handleMediaUpload(event, cIdx, rIdx, targetType) {
-            const file = event.target.files[0];
-            if (!file) return;
-            const reader = new FileReader();
-            reader.onload = function(e) {
-                const isAudio = file.type.startsWith('audio');
-                if (targetType === 'question') {
-                    gameData[cIdx].cards[rIdx].qMedia = e.target.result;
-                    gameData[cIdx].cards[rIdx].qMediaType = isAudio ? 'audio' : 'image';
-                } else {
-                    gameData[cIdx].cards[rIdx].aMedia = e.target.result;
-                    gameData[cIdx].cards[rIdx].aMediaType = isAudio ? 'audio' : 'image';
+                    card.className = `point-card ${qData.played ? 'played' : ''}`;
+                    let mediaIcon = '';
+                    if (qData.qAudio || qData.aAudio) mediaIcon += ' 🎶';
+                    if (qData.qImage || qData.aImage) mediaIcon += ' 🖼️';
+                    card.innerHTML = `${qData.points} ${mediaIcon ? `<span class="media-icon-badge">${mediaIcon}</span>` : ''}`;
+                    if (!qData.played) card.onclick = () => openQuestion(col, row);
+                    board.appendChild(card);
                 }
-                openEditor();
+            }
+        }
+
+        function renderPlayers() {
+            const row = document.getElementById('playersRow'); row.innerHTML = '';
+            players.forEach(p => {
+                const card = document.createElement('div'); card.className = 'player-card';
+                card.innerHTML = `
+                    <div class="video-wrapper"><div class="video-placeholder">👤</div></div>
+                    <div class="player-info">
+                        <div class="player-name">${p.name}</div>
+                        <div class="player-score">${p.score}</div>
+                        <div class="score-controls">
+                            <button class="score-btn" onclick="updateScore('${p.id}', 100)">+</button>
+                            <button class="score-btn" onclick="updateScore('${p.id}', -100)">-</button>
+                        </div>
+                    </div>
+                `;
+                row.appendChild(card);
+            });
+        }
+
+        function updateScore(playerId, amount) {
+            const p = players.find(x => x.id === playerId);
+            if (p) { p.score += amount; renderPlayers(); broadcast({ type: 'SCORE_UPDATE', players }); }
+        }
+
+        function openQuestion(col, row) {
+            activeQuestion = { col, row }; buzzerQueue = [];
+            const q = gameData[col].questions[row];
+            document.getElementById('modalCat').innerText = gameData[col].category;
+            document.getElementById('modalPoints').innerText = q.points;
+            document.getElementById('modalQuestionText').innerText = q.question;
+
+            const qMediaBox = document.getElementById('modalQuestionMedia'); qMediaBox.innerHTML = '';
+            if (q.qImage) qMediaBox.innerHTML += `<img src="${q.qImage}">`;
+            if (q.qAudio) qMediaBox.innerHTML += `<audio src="${q.qAudio}" controls autoplay></audio>`;
+
+            document.getElementById('modalAnswerText').innerText = q.answer;
+            const aMediaBox = document.getElementById('modalAnswerMedia'); aMediaBox.innerHTML = '';
+            if (q.aImage) aMediaBox.innerHTML += `<img src="${q.aImage}">`;
+            if (q.aAudio) aMediaBox.innerHTML += `<audio id="ansAudio" src="${q.aAudio}" controls></audio>`;
+
+            document.getElementById('modalAnswerBox').classList.remove('active');
+            renderQueue(); document.getElementById('questionModal').classList.add('active');
+            broadcast({ type: 'OPEN_QUESTION', col, row });
+        }
+
+        function triggerBuzzer() {
+            playSound('buzz');
+            const me = players.find(p => p.id === myId) || { id: myId, name: 'Anonym' };
+            if (!buzzerQueue.some(item => item.id === me.id)) {
+                buzzerQueue.push({ id: me.id, name: me.name });
+                renderQueue(); broadcast({ type: 'BUZZ_IN', user: me });
+            }
+        }
+
+        function renderQueue() {
+            const container = document.getElementById('queueListDisplay');
+            if (buzzerQueue.length === 0) { container.innerHTML = '<i>Noch niemand gebuzzert...</i>'; return; }
+            container.innerHTML = '';
+            buzzerQueue.forEach((item, index) => {
+                const row = document.createElement('div');
+                row.className = `queue-item ${index === 0 ? 'active-turn' : ''}`;
+                row.innerHTML = `<span>#${index + 1} ${item.name}</span> <span>${index === 0 ? '👉 Am Zug' : 'Wartet...'}</span>`;
+                container.appendChild(row);
+            });
+        }
+
+        function penaltyAndNextInQueue() {
+            if (buzzerQueue.length === 0) return alert("Kein Spieler in der Warteschlange!");
+            const activeUser = buzzerQueue[0];
+            const qPts = gameData[activeQuestion.col].questions[activeQuestion.row].points;
+            updateScore(activeUser.id, -Math.round(qPts / 2)); playSound('wrong');
+            buzzerQueue.shift(); renderQueue(); broadcast({ type: 'QUEUE_UPDATE', buzzerQueue });
+        }
+
+        function awardPointsToCurrent(isCorrect) {
+            if (buzzerQueue.length === 0) { closeQuestionModal(); return; }
+            const activeUser = buzzerQueue[0];
+            const qPts = gameData[activeQuestion.col].questions[activeQuestion.row].points;
+            if (isCorrect) { updateScore(activeUser.id, qPts); playSound('correct'); }
+            closeQuestionModal();
+        }
+
+        function revealAnswer() {
+            document.getElementById('modalAnswerBox').classList.add('active');
+            const ansAudio = document.getElementById('ansAudio'); if (ansAudio) ansAudio.play();
+            broadcast({ type: 'REVEAL_ANSWER' });
+        }
+
+        function closeQuestionModal() {
+            if (activeQuestion) {
+                gameData[activeQuestion.col].questions[activeQuestion.row].played = true;
+                saveDataToStorage(); renderBoard(); activeQuestion = null;
+            }
+            document.getElementById('questionModal').classList.remove('active');
+            broadcast({ type: 'CLOSE_QUESTION' });
+        }
+
+        // --- EDITOR & IMPORT / EXPORT / RESET ---
+        function openEditor() {
+            const list = document.getElementById('editorList'); list.innerHTML = '';
+            gameData.forEach((cat, cIdx) => {
+                const block = document.createElement('div'); block.className = 'editor-cat-block';
+                block.innerHTML = `
+                    <div class="editor-input-group">
+                        <label>Kategorie ${cIdx + 1}</label>
+                        <input type="text" id="cat-title-${cIdx}" value="${cat.category}">
+                    </div>
+                `;
+                cat.questions.forEach((q, qIdx) => {
+                    block.innerHTML += `
+                        <div style="margin-top:10px; padding:8px; border-left:3px solid var(--accent-blue); background:rgba(0,0,0,0.2); border-radius:0 6px 6px 0;">
+                            <div class="editor-input-group">
+                                <label style="color:var(--accent-blue); font-weight:bold;">Punkte für diese Frage</label>
+                                <input type="number" id="q-points-${cIdx}-${qIdx}" value="${q.points}" style="max-width:150px;">
+                            </div>
+                            <div class="editor-input-group">
+                                <label>Frage</label>
+                                <input type="text" id="q-text-${cIdx}-${qIdx}" value="${q.question}">
+                                <div class="media-inputs">
+                                    <input type="file" accept="image/*" onchange="handleFileUpload(event, ${cIdx}, ${qIdx}, 'qImage')">
+                                    <input type="file" accept="audio/*" onchange="handleFileUpload(event, ${cIdx}, ${qIdx}, 'qAudio')">
+                                </div>
+                            </div>
+                            <div class="editor-input-group">
+                                <label>Antwort</label>
+                                <input type="text" id="a-text-${cIdx}-${qIdx}" value="${q.answer}">
+                                <div class="media-inputs">
+                                    <input type="file" accept="image/*" onchange="handleFileUpload(event, ${cIdx}, ${qIdx}, 'aImage')">
+                                    <input type="file" accept="audio/*" onchange="handleFileUpload(event, ${cIdx}, ${qIdx}, 'aAudio')">
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                });
+                list.appendChild(block);
+            });
+            document.getElementById('editorModal').classList.add('active');
+        }
+
+        function handleFileUpload(event, cIdx, qIdx, fieldKey) {
+            const file = event.target.files[0]; if (!file) return;
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                if (file.type.startsWith('image/')) {
+                    const img = new Image(); img.src = e.target.result;
+                    img.onload = function() {
+                        const canvas = document.createElement('canvas'); const maxDim = 600;
+                        let w = img.width, h = img.height;
+                        if (w > h && w > maxDim) { h *= maxDim / w; w = maxDim; }
+                        else if (h > maxDim) { w *= maxDim / h; h = maxDim; }
+                        canvas.width = w; canvas.height = h;
+                        const ctx = canvas.getContext('2d'); ctx.drawImage(img, 0, 0, w, h);
+                        gameData[cIdx].questions[qIdx][fieldKey] = canvas.toDataURL('image/jpeg', 0.7);
+                        alert("Bild geladen!");
+                    };
+                } else {
+                    gameData[cIdx].questions[qIdx][fieldKey] = e.target.result; alert("Audio geladen!");
+                }
             };
             reader.readAsDataURL(file);
         }
 
-        function removeMedia(cIdx, rIdx, targetType) {
-            if (targetType === 'question') {
-                gameData[cIdx].cards[rIdx].qMedia = "";
-                gameData[cIdx].cards[rIdx].qMediaType = "";
-            } else {
-                gameData[cIdx].cards[rIdx].aMedia = "";
-                gameData[cIdx].cards[rIdx].aMediaType = "";
-            }
-            openEditor();
-        }
-
-        async function getDevices() {
-            try {
-                await navigator.mediaDevices.getUserMedia({ video: true, audio: true }).catch(() => {});
-                
-                const devices = await navigator.mediaDevices.enumerateDevices();
-                const videoSelect = document.getElementById('videoSource');
-                const audioSelect = document.getElementById('audioSource');
-                videoSelect.innerHTML = ''; audioSelect.innerHTML = '';
-
-                devices.forEach(device => {
-                    const option = document.createElement('option');
-                    option.value = device.deviceId;
-                    if (device.kind === 'videoinput') {
-                        option.text = device.label || `Kamera ${videoSelect.length + 1}`;
-                        videoSelect.appendChild(option);
-                    } else if (device.kind === 'audioinput') {
-                        option.text = device.label || `Mikrofon ${audioSelect.length + 1}`;
-                        audioSelect.appendChild(option);
-                    }
+        function saveEditorData() {
+            gameData.forEach((cat, cIdx) => {
+                cat.category = document.getElementById(`cat-title-${cIdx}`).value;
+                cat.questions.forEach((q, qIdx) => {
+                    const ptsVal = parseInt(document.getElementById(`q-points-${cIdx}-${qIdx}`).value, 10);
+                    q.points = isNaN(ptsVal) ? 100 : ptsVal;
+                    q.question = document.getElementById(`q-text-${cIdx}-${qIdx}`).value;
+                    q.answer = document.getElementById(`a-text-${cIdx}-${qIdx}`).value;
                 });
-            } catch (e) { console.error(e); }
+            });
+            saveDataToStorage(); renderBoard(); closeEditorModal();
         }
 
-        async function startLocalStream(videoId = null, audioId = null) {
-            try {
-                if (myStream) myStream.getTracks().forEach(t => t.stop());
-                const constraints = {
-                    video: videoId ? { deviceId: { exact: videoId } } : true,
-                    audio: audioId ? { deviceId: { exact: audioId } } : true
-                };
-                myStream = await navigator.mediaDevices.getUserMedia(constraints);
-                
-                const myId = peer ? peer.id : 'me';
-                const myRoleIsHost = isHost;
-                addOrUpdatePlayerCard(myId, getMyName(), players[myId]?.score || 0, myStream, uploadedAvatarBase64, true, myRoleIsHost);
-            } catch (err) { console.warn(err); }
-        }
-
-        async function openSettings() { 
-            await getDevices();
-            document.getElementById('settingsModal').style.display = 'flex'; 
-        }
-        function closeSettings() { document.getElementById('settingsModal').style.display = 'none'; }
-        
-        async function applySettings() {
-            const vId = document.getElementById('videoSource').value;
-            const aId = document.getElementById('audioSource').value;
-            await startLocalStream(vId, aId);
-            closeSettings();
-
-            if (isHost && peer) {
-                players[peer.id].name = getMyName();
-                players[peer.id].avatar = uploadedAvatarBase64;
-                broadcastState();
-            } else if (!isHost && hostConn) {
-                hostConn.send({ type: 'UPDATE_PROFILE', name: getMyName(), avatar: uploadedAvatarBase64 });
+        function resetToDefaultData() {
+            if (confirm("Möchtest du wirklich ALLE Fragen & Kategorien auf den Ursprungszustand zurücksetzen? Alle Anpassungen gehen verloren!")) {
+                localStorage.removeItem('jeopardy_data');
+                gameData = JSON.parse(JSON.stringify(DEFAULT_DATA));
+                saveDataToStorage();
+                renderBoard();
+                openEditor(); // Editor-Ansicht aktualisieren
+                alert("Erfolgreich zurückgesetzt!");
             }
         }
 
-        function exportEditorJson() {
-            const dataStr = JSON.stringify(gameData, null, 2);
-            const blob = new Blob([dataStr], { type: "application/json" });
-            const url = URL.createObjectURL(blob);
-            
+        function exportQuestionsJSON() {
+            const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(gameData));
             const downloadAnchor = document.createElement('a');
-            downloadAnchor.href = url;
-            downloadAnchor.download = "jeopardy_fragen_set.json";
+            downloadAnchor.setAttribute("href", dataStr);
+            downloadAnchor.setAttribute("download", "jeopardy_quiz.json");
             document.body.appendChild(downloadAnchor);
             downloadAnchor.click();
-            document.body.removeChild(downloadAnchor);
-            URL.revokeObjectURL(url);
+            downloadAnchor.remove();
         }
 
-        function importEditorJson(event) {
+        function importQuestionsJSON(event) {
             const file = event.target.files[0];
             if (!file) return;
             const reader = new FileReader();
             reader.onload = function(e) {
                 try {
-                    const parsed = JSON.parse(e.target.result);
-                    if (Array.isArray(parsed)) {
-                        gameData = parsed;
-                        initBoard();
-                        openEditor();
-                        alert("Fragenset erfolgreich aus JSON importiert!");
+                    const imported = JSON.parse(e.target.result);
+                    if (Array.isArray(imported) && imported.length === 5) {
+                        gameData = imported;
+                        saveDataToStorage();
+                        renderBoard();
+                        openEditor(); // UI auffrischen
+                        alert("Quiz-Datei erfolgreich geladen!");
                     } else {
-                        alert("Ungültiges Format: Die JSON-Datei muss ein Fragen-Array enthalten.");
+                        alert("Ungültiges Datei-Format!");
                     }
-                } catch(err) {
-                    alert("Fehler beim Lesen der JSON-Datei.");
-                }
+                } catch (err) { alert("Fehler beim Lesen der JSON-Datei!"); }
             };
             reader.readAsText(file);
         }
 
-        function openEditor() {
-            if (!isHost) return;
-            const container = document.getElementById('editorContent');
-            container.innerHTML = '';
+        function closeEditorModal() { document.getElementById('editorModal').classList.remove('active'); }
+        function openLobbyModal() { document.getElementById('lobbyModal').classList.add('active'); }
+        function closeLobbyModal() { document.getElementById('lobbyModal').classList.remove('active'); }
 
-            gameData.forEach((cat, cIdx) => {
-                const catBox = document.createElement('div');
-                catBox.className = 'editor-category-block';
-                catBox.innerHTML = `
-                    <label>Kategorie ${cIdx + 1} Name:
-                        <input type="text" id="edit-cat-${cIdx}" value="${cat.category}">
-                    </label>
-                `;
+        // --- MULTIPLAYER ---
+        let currentRoomCode = '';
+        let roomCodeHidden = false;
 
-                cat.cards.forEach((card, rIdx) => {
-                    const qHas = Boolean(card.qMedia);
-                    const aHas = Boolean(card.aMedia);
-
-                    const cardRow = document.createElement('div');
-                    cardRow.className = 'editor-card-row';
-                    cardRow.innerHTML = `
-                        <label>Punkte:
-                            <input type="number" id="edit-pts-${cIdx}-${rIdx}" value="${card.points}" style="padding:8px;">
-                        </label>
-                        <div style="display:flex; flex-direction:column; gap:4px;">
-                            <input type="text" id="edit-q-${cIdx}-${rIdx}" value="${card.q}" placeholder="Frage Text" style="padding:8px;">
-                            <div style="display:flex; align-items:center; gap:6px;">
-                                <input type="file" id="file-q-${cIdx}-${rIdx}" accept="image/*,audio/*" style="display:none;" onchange="handleMediaUpload(event, ${cIdx}, ${rIdx}, 'question')">
-                                <label class="btn-file" for="file-q-${cIdx}-${rIdx}" style="padding:4px 8px; font-size:11px;">🖼️/🎵 Frage Medien</label>
-                                <span style="font-size:11px; color:${qHas ? 'var(--success)' : '#94a3b8'}">${qHas ? 'Vorhanden' : 'Keine'}</span>
-                                ${qHas ? '<button type="button" onclick="removeMedia(' + cIdx + ',' + rIdx + ',\'question\')" style="padding:2px 6px; font-size:10px; border-color:var(--danger);">Löschen</button>' : ''}
-                            </div>
-                        </div>
-                        <div style="display:flex; flex-direction:column; gap:4px;">
-                            <input type="text" id="edit-a-${cIdx}-${rIdx}" value="${card.a}" placeholder="Antwort Text" style="padding:8px;">
-                            <div style="display:flex; align-items:center; gap:6px;">
-                                <input type="file" id="file-a-${cIdx}-${rIdx}" accept="image/*,audio/*" style="display:none;" onchange="handleMediaUpload(event, ${cIdx}, ${rIdx}, 'answer')">
-                                <label class="btn-file" for="file-a-${cIdx}-${rIdx}" style="padding:4px 8px; font-size:11px;">🖼️/🎵 Antwort Medien</label>
-                                <span style="font-size:11px; color:${aHas ? 'var(--success)' : '#94a3b8'}">${aHas ? 'Vorhanden' : 'Keine'}</span>
-                                ${aHas ? '<button type="button" onclick="removeMedia(' + cIdx + ',' + rIdx + ',\'answer\')" style="padding:2px 6px; font-size:10px; border-color:var(--danger);">Löschen</button>' : ''}
-                            </div>
-                        </div>
-                    `;
-                    catBox.appendChild(cardRow);
-                });
-                container.appendChild(catBox);
-            });
-
-            document.getElementById('editorModal').style.display = 'flex';
+        function updateRoomCodeDisplay() {
+            document.getElementById('roomCodeDisplay').innerText = roomCodeHidden ? '••••' : currentRoomCode;
+            document.getElementById('toggleCodeBtn').innerText = roomCodeHidden ? '👁️' : '🙈';
         }
 
-        function closeEditor() { document.getElementById('editorModal').style.display = 'none'; }
-
-        function saveEditorData() {
-            if (!isHost) return;
-            gameData.forEach((cat, cIdx) => {
-                const catInput = document.getElementById(`edit-cat-${cIdx}`);
-                if (catInput) cat.category = catInput.value;
-
-                cat.cards.forEach((card, rIdx) => {
-                    const qInput = document.getElementById(`edit-q-${cIdx}-${rIdx}`);
-                    const aInput = document.getElementById(`edit-a-${cIdx}-${rIdx}`);
-                    const ptsInput = document.getElementById(`edit-pts-${cIdx}-${rIdx}`);
-                    if (qInput) card.q = qInput.value;
-                    if (aInput) card.a = aInput.value;
-                    if (ptsInput) card.points = parseInt(ptsInput.value) || 200;
-                });
-            });
-
-            initBoard();
-            closeEditor();
-            broadcast({ type: 'UPDATE_GAMEDATA', gameData });
+        function toggleRoomCode() {
+            roomCodeHidden = !roomCodeHidden;
+            updateRoomCodeDisplay();
         }
 
-        function generateRoomCode() {
-            return Math.random().toString(36).substring(2, 8).toUpperCase();
-        }
-
-        function toggleRoomCodeVisibility() {
-            roomCodeVisible = !roomCodeVisible;
-            const display = document.getElementById('roomCodeDisplay');
-            const btn = document.getElementById('toggleCodeBtn');
-            if (roomCodeVisible) {
-                display.innerText = actualRoomId;
-                btn.innerText = "🙈";
-            } else {
-                display.innerText = "••••••";
-                btn.innerText = "👁️";
-            }
-        }
-
-        function createLobby() {
-            actualRoomId = generateRoomCode();
-            isHost = true;
-            updateLayoutMode();
-            initBoard();
-            peer = new Peer(actualRoomId);
-
+        function hostGame() {
+            const name = document.getElementById('playerNameInput').value || 'Host';
+            const code = Math.random().toString(36).substring(2, 6).toUpperCase();
+            peer = new Peer(`jeopardy-room-${code}`);
             peer.on('open', id => {
-                document.getElementById('btnHost').style.display = 'none';
-                document.getElementById('roomCodeContainer').style.display = 'flex';
-                document.getElementById('roomCodeDisplay').innerText = "••••••";
-                roomCodeVisible = false;
-
-                players[id] = { name: getMyName(), score: 0, avatar: uploadedAvatarBase64, isHost: true };
-                updatePlayerListUI();
+                myId = id; isHost = true; players = [{ id: myId, name: name, score: 0 }];
+                renderPlayers();
+                document.getElementById('roomBadge').style.display = 'flex';
+                currentRoomCode = code;
+                roomCodeHidden = false;
+                updateRoomCodeDisplay();
+                closeLobbyModal();
             });
-            peer.on('error', () => { createLobby(); });
             peer.on('connection', conn => {
                 connections.push(conn);
-                conn.on('open', () => {
-                    const peerIds = Object.keys(players);
-                    conn.send({ type: 'ROOM_PEERS', peers: peerIds });
-                });
-                conn.on('data', data => handleDataFromClient(data, conn));
-                conn.send({ type: 'UPDATE_GAMEDATA', gameData });
-                conn.send({ type: 'STATE_UPDATE', players });
-            });
-            peer.on('call', call => {
-                call.answer(myStream);
-                call.on('stream', remoteStream => {
-                    const isCallerHost = players[call.peer]?.isHost || false;
-                    addOrUpdatePlayerCard(call.peer, players[call.peer]?.name || (isCallerHost ? "Host" : "Mitspieler"), players[call.peer]?.score || 0, remoteStream, players[call.peer]?.avatar, false, isCallerHost);
-                });
+                conn.on('data', data => handleNetworkMessage(data, conn));
             });
         }
 
         function joinGame() {
-            const hostId = document.getElementById('joinId').value.trim().toUpperCase();
-            if (!hostId) return alert("Bitte Code eingeben!");
-
-            isHost = false;
-            updateLayoutMode();
-            initBoard();
-
+            const name = document.getElementById('playerNameInput').value || 'Spieler';
+            const code = document.getElementById('joinCodeInput').value.trim().toUpperCase();
+            if (!code) return alert("Code angeben!");
             peer = new Peer();
-            peer.on('open', (id) => {
-                players[id] = { name: getMyName(), score: 0, avatar: uploadedAvatarBase64, isHost: false };
-                updatePlayerListUI();
-
-                hostConn = peer.connect(hostId);
-                hostConn.on('open', () => {
-                    hostConn.send({ type: 'JOIN', name: getMyName(), avatar: uploadedAvatarBase64 });
-                    alert("Mit Raum verbunden!");
-                });
-                hostConn.on('data', data => handleDataFromHost(data));
-                
-                peer.on('call', call => {
-                    call.answer(myStream);
-                    call.on('stream', remoteStream => {
-                        const isCallerHost = players[call.peer]?.isHost || false;
-                        addOrUpdatePlayerCard(call.peer, players[call.peer]?.name || (isCallerHost ? "Host" : "Mitspieler"), players[call.peer]?.score || 0, remoteStream, players[call.peer]?.avatar, false, isCallerHost);
-                    });
-                });
-
-                const call = peer.call(hostId, myStream);
-                call.on('stream', remoteStream => {
-                    addOrUpdatePlayerCard(hostId, players[hostId]?.name || "Host", players[hostId]?.score || 0, remoteStream, players[hostId]?.avatar, false, true);
-                });
+            peer.on('open', id => {
+                myId = id; isHost = false;
+                const conn = peer.connect(`jeopardy-room-${code}`);
+                connections.push(conn);
+                conn.on('open', () => { conn.send({ type: 'JOIN', name, id }); closeLobbyModal(); });
+                conn.on('data', data => handleNetworkMessage(data, conn));
             });
         }
 
-        function handleDataFromClient(data, conn) {
-            if (data.type === 'JOIN') {
-                players[conn.peer] = { name: data.name, score: 0, avatar: data.avatar, isHost: false };
-                broadcastState();
-            }
-            if (data.type === 'UPDATE_PROFILE') {
-                if (players[conn.peer]) {
-                    players[conn.peer].name = data.name;
-                    players[conn.peer].avatar = data.avatar;
-                    broadcastState();
+        function broadcast(msg) { connections.forEach(c => { if (c.open) c.send(msg); }); }
+
+        function handleNetworkMessage(data, conn) {
+            if (data.type === 'JOIN' && isHost) {
+                players.push({ id: data.id, name: data.name, score: 0 });
+                renderPlayers(); broadcast({ type: 'SYNC_STATE', players, gameData });
+            } else if (data.type === 'SYNC_STATE') {
+                players = data.players; gameData = data.gameData; renderBoard(); renderPlayers();
+            } else if (data.type === 'SCORE_UPDATE') {
+                players = data.players; renderPlayers();
+            } else if (data.type === 'BUZZ_IN') {
+                if (!buzzerQueue.some(x => x.id === data.user.id)) {
+                    buzzerQueue.push(data.user); renderQueue(); playSound('buzz');
                 }
-            }
-            if (data.type === 'BUZZER') {
-                if (buzzerAllowed && !currentAnsweringPlayer) {
-                    currentAnsweringPlayer = conn.peer;
-                    buzzerAllowed = false;
-                    broadcast({ type: 'PLAYER_BUZZED', playerId: conn.peer });
-                }
-            }
-            if (data.type === 'ADJUST_SCORE') {
-                if (players[data.playerId]) {
-                    players[data.playerId].score += data.amount;
-                    broadcastState();
-                }
+            } else if (data.type === 'QUEUE_UPDATE') {
+                buzzerQueue = data.buzzerQueue; renderQueue();
+            } else if (data.type === 'OPEN_QUESTION') {
+                openQuestion(data.col, data.row);
+            } else if (data.type === 'REVEAL_ANSWER') {
+                revealAnswer();
+            } else if (data.type === 'CLOSE_QUESTION') {
+                closeQuestionModal();
+            } else if (data.type === 'RESTART') {
+                gameData = data.gameData; players = data.players; renderBoard(); renderPlayers();
             }
         }
 
-        function broadcast(msg) {
-            connections.forEach(c => c.send(msg));
-            handleDataFromHost(msg);
-        }
-
-        function broadcastState() {
-            broadcast({ type: 'STATE_UPDATE', players });
-        }
-
-        function adjustScore(pId, amount) {
-            if (isHost) {
-                if (players[pId]) {
-                    players[pId].score += amount;
-                    broadcastState();
-                }
-            } else {
-                hostConn.send({ type: 'ADJUST_SCORE', playerId: pId, amount: amount });
-            }
-        }
-
-        function handleDataFromHost(data) {
-            if (data.type === 'UPDATE_GAMEDATA') {
-                gameData = data.gameData;
-                initBoard();
-            }
-            if (data.type === 'STATE_UPDATE') {
-                players = data.players;
-                updatePlayerListUI();
-            }
-            if (data.type === 'ROOM_PEERS') {
-                data.peers.forEach(otherPeerId => {
-                    if (otherPeerId !== peer.id && myStream) {
-                        const call = peer.call(otherPeerId, myStream);
-                        call.on('stream', remoteStream => {
-                            const isH = players[otherPeerId]?.isHost || false;
-                            addOrUpdatePlayerCard(otherPeerId, players[otherPeerId]?.name || (isH ? "Host" : "Mitspieler"), players[otherPeerId]?.score || 0, remoteStream, players[otherPeerId]?.avatar, false, isH);
-                        });
-                    }
-                });
-            }
-            if (data.type === 'OPEN_QUESTION') {
-                playSound('click');
-                activeCard = data.card;
-                document.getElementById('modalCategory').innerText = data.category;
-                document.getElementById('modalQuestion').innerText = activeCard.q;
-                
-                const qImg = document.getElementById('modalQuestionImg');
-                const qAudio = document.getElementById('modalQuestionAudio');
-                qImg.style.display = 'none'; qAudio.style.display = 'none'; qAudio.pause();
-                if (activeCard.qMedia) {
-                    if (activeCard.qMediaType === 'audio') { qAudio.src = activeCard.qMedia; qAudio.style.display = 'block'; }
-                    else { qImg.src = activeCard.qMedia; qImg.style.display = 'block'; }
-                }
-
-                const aContainer = document.getElementById('modalAnswerContainer');
-                const aText = document.getElementById('modalAnswerText');
-                const aImg = document.getElementById('modalAnswerImg');
-                const aAudio = document.getElementById('modalAnswerAudio');
-                aContainer.style.display = 'none';
-                aImg.style.display = 'none'; aAudio.style.display = 'none'; aAudio.pause();
-                aText.innerText = "Antwort: " + activeCard.a;
-                if (activeCard.aMedia) {
-                    if (activeCard.aMediaType === 'audio') { aAudio.src = activeCard.aMedia; aAudio.style.display = 'block'; }
-                    else { aImg.src = activeCard.aMedia; aImg.style.display = 'block'; }
-                }
-
-                document.getElementById('questionModal').style.display = 'flex';
-                setBuzzerActive(false);
-
-                currentAnsweringPlayer = data.starterId;
-                const pName = players[data.starterId]?.name || "Unbekannt";
-                document.getElementById('turnStatus').innerText = `👉 AM ZUG: ${pName}`;
-                highlightActivePlayer(data.starterId);
-
-                if (isHost) document.getElementById('hostQuestionControls').style.display = 'block';
-            }
-            if (data.type === 'SET_TURN') {
-                currentAnsweringPlayer = data.playerId;
-                const pName = players[data.playerId]?.name || "Unbekannt";
-                document.getElementById('turnStatus').innerText = `👉 AM ZUG: ${pName}`;
-                highlightActivePlayer(data.playerId);
-            }
-            if (data.type === 'ENABLE_BUZZER') {
-                playSound('wrong');
-                currentAnsweringPlayer = null;
-                buzzerAllowed = true;
-                document.getElementById('turnStatus').innerText = "❌ BUZZER FREI!";
-                
-                if (peer && peer.id !== data.failedPlayerId) setBuzzerActive(true);
-            }
-            if (data.type === 'PLAYER_BUZZED') {
-                playSound('buzzer');
-                currentAnsweringPlayer = data.playerId;
-                buzzerAllowed = false;
-                setBuzzerActive(false);
-                
-                const pName = players[data.playerId]?.name || "Unbekannt";
-                document.getElementById('turnStatus').innerText = `🔔 GEBUZZERT: ${pName}!`;
-                highlightActivePlayer(data.playerId, true);
-            }
-            if (data.type === 'CLOSE_QUESTION') {
-                document.getElementById('questionModal').style.display = 'none';
-                document.getElementById('modalQuestionAudio').pause();
-                document.getElementById('modalAnswerAudio').pause();
-                highlightActivePlayer(null);
-            }
-            if (data.type === 'RESET_GAME') {
-                executeSoftResetLocally();
-            }
-        }
-
-        function setBuzzerActive(active) {
-            const bBtn = document.getElementById('buzzerBtn');
-            if (active) bBtn.classList.add('active');
-            else bBtn.classList.remove('active');
-        }
-
-        function resetGame() {
-            if (!isHost) return;
-            executeSoftResetLocally();
-            broadcast({ type: 'RESET_GAME' });
-        }
-
-        function executeSoftResetLocally() {
-            gameData.forEach(cat => cat.cards.forEach(card => card.used = false));
-            initBoard();
-            Object.keys(players).forEach(pId => players[pId].score = 0);
-            updatePlayerListUI();
-            document.getElementById('questionModal').style.display = 'none';
-            document.getElementById('modalQuestionAudio').pause();
-            document.getElementById('modalAnswerAudio').pause();
-        }
-
-        function getPlayerIdsInOrder() {
-            return Object.keys(players).filter(id => !players[id].isHost);
-        }
-
-        function onCardClick(c, r) {
-            if (!isHost) return;
-            const card = gameData[c].cards[r];
-            if (card.used) return;
-            card.used = true;
-            document.getElementById(`card-${c}-${r}`).classList.add('used');
-            
-            const playingList = getPlayerIdsInOrder();
-            if (playingList.length === 0) {
-                alert("Keine Spieler im Spiel!");
-                return;
-            }
-            const firstPlayerId = playingList[0];
-
-            broadcast({ type: 'OPEN_QUESTION', category: gameData[c].category, card: card, starterId: firstPlayerId });
-        }
-
-        function rateAnswer(isCorrect) {
-            if (!isHost || !currentAnsweringPlayer) return;
-            
-            if (isCorrect) {
-                playSound('correct');
-                players[currentAnsweringPlayer].score += activeCard.points;
-                broadcastState();
-                closeModal();
-            } else {
-                playSound('wrong');
-                players[currentAnsweringPlayer].score -= activeCard.points;
-                broadcastState();
-                
-                const playingList = getPlayerIdsInOrder();
-                const currentIndex = playingList.indexOf(currentAnsweringPlayer);
-                
-                if (currentIndex !== -1 && currentIndex < playingList.length - 1) {
-                    const nextPlayerId = playingList[currentIndex + 1];
-                    broadcast({ type: 'SET_TURN', playerId: nextPlayerId });
-                } else {
-                    const failedId = currentAnsweringPlayer;
-                    broadcast({ type: 'ENABLE_BUZZER', failedPlayerId: failedId });
-                }
-            }
-        }
-
-        function sendBuzzer() {
-            if (!buzzerAllowed) return;
-            if (isHost) handleDataFromClient({ type: 'BUZZER' }, { peer: peer.id });
-            else hostConn.send({ type: 'BUZZER' });
-        }
-
-        function toggleAnswer() {
-            if (!isHost) return;
-            const a = document.getElementById('modalAnswerContainer');
-            a.style.display = a.style.display === 'none' ? 'block' : 'none';
-        }
-
-        function closeModal() {
-            if (isHost) broadcast({ type: 'CLOSE_QUESTION' });
-        }
-
-        function addOrUpdatePlayerCard(id, name, score, stream, avatar = null, isMe = false, isPlayerHost = false) {
-            const containerId = isPlayerHost ? 'hostSidebarContainer' : 'playersGridBottom';
-            const gridEl = document.getElementById(containerId);
-            if (!gridEl) return;
-
-            if (stream) {
-                if (isMe) myStream = stream;
-                else remoteStreams[id] = stream;
-            }
-
-            let container = gridEl.querySelector('#player-card-' + id);
-            if (!container) {
-                container = document.createElement('div');
-                container.className = 'player-card' + (isPlayerHost ? ' host-card' : '');
-                container.id = 'player-card-' + id;
-                
-                const video = document.createElement('video');
-                video.className = 'video-box';
-                video.autoplay = true;
-                video.playsInline = true;
-                if (isMe) video.muted = true;
-                
-                const topOverlay = document.createElement('div');
-                topOverlay.className = 'player-overlay-top';
-                const defaultAvatar = 'https://api.dicebear.com/7.x/bottts/svg?seed=' + id;
-                topOverlay.innerHTML = `
-                    <img class="avatar-img" src="${avatar || defaultAvatar}" alt="Avatar">
-                    <span class="p-name">${name} ${isPlayerHost ? '👑' : ''}</span>
-                `;
-                
-                const bottomOverlay = document.createElement('div');
-                bottomOverlay.className = 'player-overlay-bottom';
-                
-                let scoreHtml = `<span class="p-score">${score} Pkt.</span>`;
-                if (isHost) {
-                    scoreHtml += `
-                        <div class="score-adjuster">
-                            <button class="score-btn" onclick="adjustScore('${id}', -100)" title="100 abziehen">-</button>
-                            <button class="score-btn" onclick="adjustScore('${id}', 100)" title="100 hinzufügen">+</button>
-                        </div>
-                    `;
-                }
-                bottomOverlay.innerHTML = scoreHtml;
-
-                container.appendChild(video);
-                container.appendChild(topOverlay);
-                container.appendChild(bottomOverlay);
-                gridEl.appendChild(container);
-            }
-
-            const activeStream = stream || (isMe ? myStream : remoteStreams[id]);
-            if (activeStream) {
-                const v = container.querySelector('video');
-                if (v.srcObject !== activeStream) v.srcObject = activeStream;
-            }
-
-            container.querySelector('.p-name').innerText = name + (isPlayerHost ? ' 👑' : '');
-            
-            const scoreEl = container.querySelector('.p-score');
-            if (scoreEl) scoreEl.innerText = score + " Pkt.";
-
-            if (avatar) container.querySelector('.avatar-img').src = avatar;
-        }
-
-        function updatePlayerListUI() {
-            document.getElementById('hostSidebarContainer').innerHTML = '';
-            document.getElementById('playersGridBottom').innerHTML = '';
-
-            Object.keys(players).forEach(pId => {
-                const isMe = peer && pId === peer.id;
-                const p = players[pId];
-                addOrUpdatePlayerCard(pId, p.name, p.score, null, p.avatar, isMe, p.isHost);
-            });
-        }
-
-        function highlightActivePlayer(pId, buzzed = false) {
-            document.querySelectorAll('.player-card').forEach(c => c.classList.remove('active-turn', 'buzzed'));
-            if (pId) {
-                document.querySelectorAll('.player-card').forEach(c => {
-                    if (c.id === 'player-card-' + pId) c.classList.add(buzzed ? 'buzzed' : 'active-turn');
-                });
-            }
-        }
+        renderBoard();
+        renderPlayers();
     </script>
 </body>
 </html>
