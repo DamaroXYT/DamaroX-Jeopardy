@@ -96,6 +96,10 @@
         }
         .room-toggle-btn:hover { background: var(--accent-purple); }
 
+        /* Mitspieler: Host-Funktionen ausblenden, Board nicht klickbar */
+        body.player .host-only { display: none !important; }
+        body.player .point-card { pointer-events: none; }
+
         .game-board {
             display: grid; grid-template-columns: repeat(5, 1fr); gap: 10px; flex-grow: 1; margin-bottom: 15px;
         }
@@ -185,14 +189,14 @@
         <header>
             <h1>Jeopardy <span style="font-size:0.7em; color:var(--accent-pink);">Galaxy</span></h1>
             <div class="controls-group">
-                <button class="btn btn-yellow" onclick="restartGame()">🔄 Neustart</button>
+                <button class="btn btn-yellow host-only" onclick="restartGame()">🔄 Neustart</button>
                 <div id="roomBadge" class="room-badge" style="display:none;">
                     <span>Raum:</span>
                     <strong id="roomCodeDisplay" style="color:#fff;">-</strong>
                     <button id="toggleCodeBtn" class="room-toggle-btn" onclick="toggleRoomCode()" title="Raumcode ein-/ausblenden">🙈</button>
                 </div>
                 <button class="btn btn-green" onclick="openLobbyModal()">🎮 Multiplayer</button>
-                <button class="btn" onclick="openEditor()">⚙️ Editor & Medien</button>
+                <button class="btn host-only" onclick="openEditor()">⚙️ Editor & Medien</button>
             </div>
         </header>
 
@@ -203,7 +207,7 @@
     <!-- Question Modal -->
     <div class="modal-overlay" id="questionModal">
         <div class="modal-card">
-            <button class="close-modal-btn" onclick="closeQuestionModal()">&times;</button>
+            <button class="close-modal-btn host-only" onclick="closeQuestionModal()">&times;</button>
             <div class="modal-category" id="modalCat">Kategorie</div>
             <div class="modal-points" id="modalPoints">400</div>
             
@@ -222,7 +226,7 @@
                 <div class="media-container" id="modalAnswerMedia"></div>
             </div>
 
-            <div class="modal-actions" style="gap:10px; margin-top:15px; flex-wrap:wrap; justify-content:center; display:flex;">
+            <div class="modal-actions host-only" style="gap:10px; margin-top:15px; flex-wrap:wrap; justify-content:center; display:flex;">
                 <button class="btn btn-pink" onclick="revealAnswer()">Lösung anzeigen</button>
                 <button class="btn btn-green" onclick="awardPointsToCurrent(true)">✓ Richtig (+Punkte) & Ende</button>
                 <button class="btn btn-pink" onclick="penaltyAndNextInQueue()">❌ Falsch (-50%) & Nächster</button>
@@ -374,7 +378,7 @@
                     if (qData.qAudio || qData.aAudio) mediaIcon += ' 🎶';
                     if (qData.qImage || qData.aImage) mediaIcon += ' 🖼️';
                     card.innerHTML = `${qData.points} ${mediaIcon ? `<span class="media-icon-badge">${mediaIcon}</span>` : ''}`;
-                    if (!qData.played) card.onclick = () => openQuestion(col, row);
+                    if (!qData.played && isHost) card.onclick = () => openQuestion(col, row);
                     board.appendChild(card);
                 }
             }
@@ -389,7 +393,7 @@
                     <div class="player-info">
                         <div class="player-name">${p.name}</div>
                         <div class="player-score">${p.score}</div>
-                        <div class="score-controls">
+                        <div class="score-controls host-only">
                             <button class="score-btn" onclick="updateScore('${p.id}', 100)">+</button>
                             <button class="score-btn" onclick="updateScore('${p.id}', -100)">-</button>
                         </div>
@@ -422,16 +426,25 @@
 
             document.getElementById('modalAnswerBox').classList.remove('active');
             renderQueue(); document.getElementById('questionModal').classList.add('active');
-            broadcast({ type: 'OPEN_QUESTION', col, row });
+            if (isHost) broadcast({ type: 'OPEN_QUESTION', col, row });
         }
 
         function triggerBuzzer() {
             playSound('buzz');
             const me = players.find(p => p.id === myId) || { id: myId, name: 'Anonym' };
-            if (!buzzerQueue.some(item => item.id === me.id)) {
-                buzzerQueue.push({ id: me.id, name: me.name });
-                renderQueue(); broadcast({ type: 'BUZZ_IN', user: me });
+            if (isHost) {
+                addToQueue(me);
+            } else if (!buzzerQueue.some(item => item.id === me.id)) {
+                // Mitspieler melden den Buzz nur an den Host, der die Reihenfolge bestimmt
+                broadcast({ type: 'BUZZ_IN', user: { id: me.id, name: me.name } });
             }
+        }
+
+        function addToQueue(user) {
+            if (buzzerQueue.some(item => item.id === user.id)) return;
+            buzzerQueue.push({ id: user.id, name: user.name });
+            renderQueue();
+            broadcast({ type: 'QUEUE_UPDATE', buzzerQueue });
         }
 
         function renderQueue() {
@@ -465,7 +478,7 @@
         function revealAnswer() {
             document.getElementById('modalAnswerBox').classList.add('active');
             const ansAudio = document.getElementById('ansAudio'); if (ansAudio) ansAudio.play();
-            broadcast({ type: 'REVEAL_ANSWER' });
+            if (isHost) broadcast({ type: 'REVEAL_ANSWER' });
         }
 
         function closeQuestionModal() {
@@ -474,7 +487,7 @@
                 saveDataToStorage(); renderBoard(); activeQuestion = null;
             }
             document.getElementById('questionModal').classList.remove('active');
-            broadcast({ type: 'CLOSE_QUESTION' });
+            if (isHost) broadcast({ type: 'CLOSE_QUESTION' });
         }
 
         // --- EDITOR & IMPORT / EXPORT / RESET ---
@@ -621,6 +634,7 @@
             peer = new Peer(`jeopardy-room-${code}`);
             peer.on('open', id => {
                 myId = id; isHost = true; players = [{ id: myId, name: name, score: 0 }];
+                document.body.classList.remove('player');
                 renderPlayers();
                 document.getElementById('roomBadge').style.display = 'flex';
                 currentRoomCode = code;
@@ -643,7 +657,14 @@
                 myId = id; isHost = false;
                 const conn = peer.connect(`jeopardy-room-${code}`);
                 connections.push(conn);
-                conn.on('open', () => { conn.send({ type: 'JOIN', name, id }); closeLobbyModal(); });
+                conn.on('open', () => {
+                    conn.send({ type: 'JOIN', name, id });
+                    document.body.classList.add('player');
+                    document.getElementById('joinCodeInput').value = '';
+                    document.getElementById('roomBadge').style.display = 'none';
+                    renderBoard(); renderPlayers();
+                    closeLobbyModal();
+                });
                 conn.on('data', data => handleNetworkMessage(data, conn));
             });
         }
@@ -651,17 +672,21 @@
         function broadcast(msg) { connections.forEach(c => { if (c.open) c.send(msg); }); }
 
         function handleNetworkMessage(data, conn) {
-            if (data.type === 'JOIN' && isHost) {
-                players.push({ id: data.id, name: data.name, score: 0 });
-                renderPlayers(); broadcast({ type: 'SYNC_STATE', players, gameData });
-            } else if (data.type === 'SYNC_STATE') {
+            if (isHost) {
+                // Der Host nimmt von Mitspielern nur Beitritt und Buzzer an
+                if (data.type === 'JOIN') {
+                    if (!players.some(p => p.id === data.id)) players.push({ id: data.id, name: data.name, score: 0 });
+                    renderPlayers(); broadcast({ type: 'SYNC_STATE', players, gameData });
+                } else if (data.type === 'BUZZ_IN' && activeQuestion) {
+                    playSound('buzz'); addToQueue(data.user);
+                }
+                return;
+            }
+            // Mitspieler übernehmen nur Anweisungen des Hosts
+            if (data.type === 'SYNC_STATE') {
                 players = data.players; gameData = data.gameData; renderBoard(); renderPlayers();
             } else if (data.type === 'SCORE_UPDATE') {
                 players = data.players; renderPlayers();
-            } else if (data.type === 'BUZZ_IN') {
-                if (!buzzerQueue.some(x => x.id === data.user.id)) {
-                    buzzerQueue.push(data.user); renderQueue(); playSound('buzz');
-                }
             } else if (data.type === 'QUEUE_UPDATE') {
                 buzzerQueue = data.buzzerQueue; renderQueue();
             } else if (data.type === 'OPEN_QUESTION') {
