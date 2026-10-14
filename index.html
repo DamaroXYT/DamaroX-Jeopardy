@@ -96,6 +96,11 @@
         }
         .room-toggle-btn:hover { background: var(--accent-purple); }
 
+        .btn-buzzer:disabled { opacity: 0.35; cursor: not-allowed; animation: none; box-shadow: none; }
+        .player-card.active-player { border-color: var(--accent-green); box-shadow: 0 0 20px rgba(0, 255, 136, 0.55); }
+        .turn-badge { font-family: 'Orbitron', sans-serif; font-size: 0.7rem; color: var(--accent-green); }
+        .waiting-hint { grid-column: 1 / -1; text-align: center; color: var(--text-muted); font-family: 'Orbitron', sans-serif; font-size: 0.85rem; padding: 20px; }
+
         /* Mitspieler: Host-Funktionen ausblenden, Board nicht klickbar */
         body.player .host-only { display: none !important; }
         body.player .point-card { pointer-events: none; }
@@ -214,7 +219,7 @@
             <div class="modal-content-box" id="modalQuestionText">Fragetext</div>
             <div class="media-container" id="modalQuestionMedia"></div>
 
-            <button class="btn btn-buzzer" style="margin:10px 0;" onclick="triggerBuzzer()">🔔 BUZZER!</button>
+            <button id="buzzerBtn" class="btn btn-buzzer" style="margin:10px 0;" onclick="triggerBuzzer()">🔔 BUZZER!</button>
 
             <div class="buzzer-queue-box">
                 <div class="buzzer-queue-title">⚡ Buzzer Reihenfolge:</div>
@@ -295,6 +300,9 @@
         let myId = 'local-user';
         let players = [{ id: myId, name: 'Spieler 1', score: 0 }];
         let buzzerQueue = [];
+        let buzzOpen = false;      // false = nur der Spieler am Zug, true = alle dürfen buzzern
+        let wrongIds = [];         // Spieler, die diese Frage schon falsch hatten
+        let nextTurnIdx = 0;       // Index (links -> rechts) des Spielers, der die nächste Frage bekommt
 
         let peer = null;
         let connections = [];
@@ -352,6 +360,7 @@
             if (confirm("Möchtest du das aktuelle Spiel neustarten? (Punkte werden auf 0 gesetzt, Karten wieder freigeschaltet)")) {
                 gameData.forEach(cat => cat.questions.forEach(q => q.played = false));
                 players.forEach(p => p.score = 0);
+                nextTurnIdx = 0;
                 saveDataToStorage(); renderBoard(); renderPlayers();
                 broadcast({ type: 'RESTART', gameData, players });
             }
@@ -386,12 +395,18 @@
 
         function renderPlayers() {
             const row = document.getElementById('playersRow'); row.innerHTML = '';
+            if (players.length === 0) {
+                row.innerHTML = '<div class="waiting-hint">Warte auf Mitspieler...</div>';
+            }
+            const onTurnId = (activeQuestion && buzzerQueue.length > 0) ? buzzerQueue[0].id : null;
             players.forEach(p => {
-                const card = document.createElement('div'); card.className = 'player-card';
+                const card = document.createElement('div');
+                card.className = 'player-card' + (p.id === onTurnId ? ' active-player' : '');
                 card.innerHTML = `
                     <div class="video-wrapper"><div class="video-placeholder">👤</div></div>
                     <div class="player-info">
                         <div class="player-name">${p.name}</div>
+                        ${p.id === onTurnId ? '<div class="turn-badge">👉 AM ZUG</div>' : ''}
                         <div class="player-score">${p.score}</div>
                         <div class="score-controls host-only">
                             <button class="score-btn" onclick="updateScore('${p.id}', 100)">+</button>
@@ -401,6 +416,17 @@
                 `;
                 row.appendChild(card);
             });
+            updateBuzzerButton();
+        }
+
+        // Buzzer: Host (nicht Spieler) sieht ihn nicht; Mitspieler nur wenn sie buzzern dürfen
+        function updateBuzzerButton() {
+            const btn = document.getElementById('buzzerBtn'); if (!btn) return;
+            const me = players.find(p => p.id === myId);
+            if (!me) { btn.style.display = 'none'; return; }
+            btn.style.display = '';
+            const can = !!activeQuestion && buzzOpen && !wrongIds.includes(me.id) && !buzzerQueue.some(i => i.id === me.id);
+            btn.disabled = !can;
         }
 
         function updateScore(playerId, amount) {
@@ -409,7 +435,17 @@
         }
 
         function openQuestion(col, row) {
-            activeQuestion = { col, row }; buzzerQueue = [];
+            activeQuestion = { col, row }; buzzerQueue = []; wrongIds = []; buzzOpen = false;
+            if (isHost) {
+                if (players.length > 0) {
+                    // Reihum von links nach rechts: dieser Spieler ist automatisch zuerst dran
+                    const idx = nextTurnIdx % players.length;
+                    buzzerQueue = [{ id: players[idx].id, name: players[idx].name }];
+                    nextTurnIdx = (idx + 1) % players.length;
+                } else {
+                    buzzOpen = true;
+                }
+            }
             const q = gameData[col].questions[row];
             document.getElementById('modalCat').innerText = gameData[col].category;
             document.getElementById('modalPoints').innerText = q.points;
@@ -426,28 +462,41 @@
 
             document.getElementById('modalAnswerBox').classList.remove('active');
             renderQueue(); document.getElementById('questionModal').classList.add('active');
-            if (isHost) broadcast({ type: 'OPEN_QUESTION', col, row });
+            if (isHost) broadcast({ type: 'OPEN_QUESTION', col, row, ...queueState() });
+        }
+
+        function queueState() { return { buzzerQueue, buzzOpen, wrongIds }; }
+        function broadcastQueueState() { broadcast({ type: 'QUEUE_UPDATE', ...queueState() }); }
+        function applyQueueState(d) {
+            buzzerQueue = d.buzzerQueue || []; buzzOpen = !!d.buzzOpen; wrongIds = d.wrongIds || [];
+            renderQueue();
         }
 
         function triggerBuzzer() {
+            const me = players.find(p => p.id === myId);
+            if (!me || !activeQuestion || !buzzOpen) return;
+            if (wrongIds.includes(me.id) || buzzerQueue.some(item => item.id === me.id)) return;
             playSound('buzz');
-            const me = players.find(p => p.id === myId) || { id: myId, name: 'Anonym' };
             if (isHost) {
                 addToQueue(me);
-            } else if (!buzzerQueue.some(item => item.id === me.id)) {
+            } else {
                 // Mitspieler melden den Buzz nur an den Host, der die Reihenfolge bestimmt
                 broadcast({ type: 'BUZZ_IN', user: { id: me.id, name: me.name } });
             }
         }
 
+        // Nur der Host führt diese Funktion aus und prüft alle Regeln
         function addToQueue(user) {
-            if (buzzerQueue.some(item => item.id === user.id)) return;
+            if (!activeQuestion || !buzzOpen) return;
+            if (!players.some(p => p.id === user.id)) return;
+            if (wrongIds.includes(user.id) || buzzerQueue.some(item => item.id === user.id)) return;
             buzzerQueue.push({ id: user.id, name: user.name });
             renderQueue();
-            broadcast({ type: 'QUEUE_UPDATE', buzzerQueue });
+            broadcastQueueState();
         }
 
         function renderQueue() {
+            renderPlayers();
             const container = document.getElementById('queueListDisplay');
             if (buzzerQueue.length === 0) { container.innerHTML = '<i>Noch niemand gebuzzert...</i>'; return; }
             container.innerHTML = '';
@@ -464,7 +513,10 @@
             const activeUser = buzzerQueue[0];
             const qPts = gameData[activeQuestion.col].questions[activeQuestion.row].points;
             updateScore(activeUser.id, -Math.round(qPts / 2)); playSound('wrong');
-            buzzerQueue.shift(); renderQueue(); broadcast({ type: 'QUEUE_UPDATE', buzzerQueue });
+            wrongIds.push(activeUser.id);
+            buzzerQueue.shift();
+            buzzOpen = true;   // nach der ersten falschen Antwort dürfen alle anderen buzzern
+            renderQueue(); broadcastQueueState();
         }
 
         function awardPointsToCurrent(isCorrect) {
@@ -485,6 +537,8 @@
             if (activeQuestion) {
                 gameData[activeQuestion.col].questions[activeQuestion.row].played = true;
                 saveDataToStorage(); renderBoard(); activeQuestion = null;
+                buzzerQueue = []; wrongIds = []; buzzOpen = false;
+                renderPlayers();
             }
             document.getElementById('questionModal').classList.remove('active');
             if (isHost) broadcast({ type: 'CLOSE_QUESTION' });
@@ -633,7 +687,8 @@
             const code = Math.random().toString(36).substring(2, 6).toUpperCase();
             peer = new Peer(`jeopardy-room-${code}`);
             peer.on('open', id => {
-                myId = id; isHost = true; players = [{ id: myId, name: name, score: 0 }];
+                // Der Host ist nur Spielleiter und taucht nicht als Spieler auf
+                myId = id; isHost = true; players = []; nextTurnIdx = 0;
                 document.body.classList.remove('player');
                 renderPlayers();
                 document.getElementById('roomBadge').style.display = 'flex';
@@ -662,6 +717,7 @@
                     document.body.classList.add('player');
                     document.getElementById('joinCodeInput').value = '';
                     document.getElementById('roomBadge').style.display = 'none';
+                    players = [];   // Spielerliste kommt vom Host
                     renderBoard(); renderPlayers();
                     closeLobbyModal();
                 });
@@ -677,8 +733,10 @@
                 if (data.type === 'JOIN') {
                     if (!players.some(p => p.id === data.id)) players.push({ id: data.id, name: data.name, score: 0 });
                     renderPlayers(); broadcast({ type: 'SYNC_STATE', players, gameData });
-                } else if (data.type === 'BUZZ_IN' && activeQuestion) {
-                    playSound('buzz'); addToQueue(data.user);
+                } else if (data.type === 'BUZZ_IN' && data.user) {
+                    const before = buzzerQueue.length;
+                    addToQueue(data.user);
+                    if (buzzerQueue.length > before) playSound('buzz');
                 }
                 return;
             }
@@ -688,9 +746,10 @@
             } else if (data.type === 'SCORE_UPDATE') {
                 players = data.players; renderPlayers();
             } else if (data.type === 'QUEUE_UPDATE') {
-                buzzerQueue = data.buzzerQueue; renderQueue();
+                applyQueueState(data);
             } else if (data.type === 'OPEN_QUESTION') {
                 openQuestion(data.col, data.row);
+                applyQueueState(data);
             } else if (data.type === 'REVEAL_ANSWER') {
                 revealAnswer();
             } else if (data.type === 'CLOSE_QUESTION') {
