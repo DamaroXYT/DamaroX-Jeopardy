@@ -244,6 +244,7 @@
         <div class="modal-card" style="max-width:900px;">
             <button class="close-modal-btn" onclick="closeEditorModal()">&times;</button>
             <h2 style="font-family:'Orbitron'; color:var(--accent-blue); margin-bottom:15px;">Fragen, Punkte & Medien Editor</h2>
+            <div id="storageInfo" style="font-size:0.8rem; color:var(--text-muted); margin:-8px 0 12px; width:100%; text-align:left;"></div>
             
             <div class="editor-grid" id="editorList"></div>
 
@@ -428,14 +429,35 @@
             }
         }
 
+        const fmtMB = b => (b / 1048576).toFixed(b < 10485760 ? 1 : 0) + ' MB';
+        function quizSizeBytes() {
+            let n = 0;
+            gameData.forEach(c => c.questions.forEach(q => MEDIA_FIELDS.forEach(f => { n += (q[f] || '').length; })));
+            return n;
+        }
+        async function storageSummary() {
+            let text = `Quiz-Größe: ${fmtMB(quizSizeBytes())}`;
+            try {
+                if (navigator.storage && navigator.storage.estimate) {
+                    const est = await navigator.storage.estimate();
+                    text += ` · Browser-Speicher: ${fmtMB(est.usage || 0)} belegt von ca. ${fmtMB(est.quota || 0)} erlaubt`;
+                }
+            } catch (e) {}
+            return text;
+        }
+        async function updateStorageInfo() {
+            const el = document.getElementById('storageInfo');
+            if (el) el.innerText = '💾 ' + await storageSummary();
+        }
+
         let saveTimer = null;
         function saveDataToStorage() {
             if (!isHost) return;   // Mitspieler überschreiben ihr eigenes Quiz nicht mit dem des Hosts
             clearTimeout(saveTimer);
             saveTimer = setTimeout(() => {
-                dbSet(DATA_KEY, gameData).catch(e => {
+                dbSet(DATA_KEY, gameData).then(updateStorageInfo).catch(async e => {
                     console.warn(e);
-                    alert("Speichern fehlgeschlagen! Wahrscheinlich ist der Browser-Speicher voll.");
+                    alert("Speichern fehlgeschlagen! (" + (e && e.name ? e.name : 'Fehler') + ")\n" + await storageSummary());
                 });
             }, 200);
         }
@@ -624,6 +646,7 @@
 
         // --- EDITOR & IMPORT / EXPORT / RESET ---
         function openEditor() {
+            updateStorageInfo();
             const list = document.getElementById('editorList'); list.innerHTML = '';
             gameData.forEach((cat, cIdx) => {
                 const block = document.createElement('div'); block.className = 'editor-cat-block';
