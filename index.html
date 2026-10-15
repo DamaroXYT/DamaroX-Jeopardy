@@ -296,7 +296,69 @@
             }))
         }));
 
-        let gameData = JSON.parse(localStorage.getItem('jeopardy_data')) || DEFAULT_DATA;
+        // Fragen & Medien liegen in IndexedDB (hunderte MB) statt localStorage (~5 MB)
+        let gameData = JSON.parse(JSON.stringify(DEFAULT_DATA));
+
+        const DB_NAME = 'jeopardy_db', STORE = 'kv', DATA_KEY = 'gameData';
+        function openDB() {
+            return new Promise((resolve, reject) => {
+                const req = indexedDB.open(DB_NAME, 1);
+                req.onupgradeneeded = () => req.result.createObjectStore(STORE);
+                req.onsuccess = () => resolve(req.result);
+                req.onerror = () => reject(req.error);
+            });
+        }
+        async function dbGet(key) {
+            const db = await openDB();
+            return new Promise((resolve, reject) => {
+                const r = db.transaction(STORE, 'readonly').objectStore(STORE).get(key);
+                r.onsuccess = () => resolve(r.result); r.onerror = () => reject(r.error);
+            });
+        }
+        async function dbSet(key, value) {
+            const db = await openDB();
+            return new Promise((resolve, reject) => {
+                const tx = db.transaction(STORE, 'readwrite');
+                tx.objectStore(STORE).put(value, key);
+                tx.oncomplete = () => resolve(); tx.onerror = () => reject(tx.error); tx.onabort = () => reject(tx.error);
+            });
+        }
+        async function dbDelete(key) {
+            const db = await openDB();
+            return new Promise((resolve, reject) => {
+                const tx = db.transaction(STORE, 'readwrite');
+                tx.objectStore(STORE).delete(key);
+                tx.oncomplete = () => resolve(); tx.onerror = () => reject(tx.error);
+            });
+        }
+        async function loadStoredData() {
+            try {
+                let stored = await dbGet(DATA_KEY);
+                if (!stored) {
+                    // Einmalige Übernahme alter Daten aus localStorage
+                    try {
+                        const old = JSON.parse(localStorage.getItem('jeopardy_data'));
+                        if (Array.isArray(old) && old.length === 5) { stored = old; await dbSet(DATA_KEY, old); localStorage.removeItem('jeopardy_data'); }
+                    } catch (e) {}
+                }
+                if (Array.isArray(stored) && stored.length === 5) gameData = stored;
+            } catch (e) { console.warn('Speicher konnte nicht geladen werden', e); }
+            try { if (navigator.storage && navigator.storage.persist) navigator.storage.persist(); } catch (e) {}
+        }
+
+        // Medien nicht an Mitspieler schicken, solange sie nicht gebraucht werden
+        const MEDIA_FIELDS = ['qImage', 'qAudio', 'aImage', 'aAudio'];
+        function gameDataWithoutMedia() {
+            return gameData.map(cat => ({
+                ...cat,
+                questions: cat.questions.map(q => {
+                    const copy = { ...q };
+                    MEDIA_FIELDS.forEach(f => { copy[f] = q[f] ? '1' : ''; });   // '1' = "hat Medien" (für die Icons)
+                    return copy;
+                })
+            }));
+        }
+        function mediaOf(q) { const m = {}; MEDIA_FIELDS.forEach(f => { m[f] = q[f] || ''; }); return m; }
         let myId = 'local-user';
         let players = [{ id: myId, name: 'Spieler 1', score: 0 }];
         let buzzerQueue = [];
@@ -362,13 +424,20 @@
                 players.forEach(p => p.score = 0);
                 nextTurnIdx = 0;
                 saveDataToStorage(); renderBoard(); renderPlayers();
-                broadcast({ type: 'RESTART', gameData, players });
+                broadcast({ type: 'RESTART', gameData: gameDataWithoutMedia(), players });
             }
         }
 
+        let saveTimer = null;
         function saveDataToStorage() {
-            try { localStorage.setItem('jeopardy_data', JSON.stringify(gameData)); }
-            catch (e) { alert("Speicher voll! Zu große Mediendateien hochgeladen."); }
+            if (!isHost) return;   // Mitspieler überschreiben ihr eigenes Quiz nicht mit dem des Hosts
+            clearTimeout(saveTimer);
+            saveTimer = setTimeout(() => {
+                dbSet(DATA_KEY, gameData).catch(e => {
+                    console.warn(e);
+                    alert("Speichern fehlgeschlagen! Wahrscheinlich ist der Browser-Speicher voll.");
+                });
+            }, 200);
         }
 
         function renderBoard() {
@@ -462,7 +531,7 @@
 
             document.getElementById('modalAnswerBox').classList.remove('active');
             renderQueue(); document.getElementById('questionModal').classList.add('active');
-            if (isHost) broadcast({ type: 'OPEN_QUESTION', col, row, ...queueState() });
+            if (isHost) broadcast({ type: 'OPEN_QUESTION', col, row, media: mediaOf(q), ...queueState() });
         }
 
         function queueState() { return { buzzerQueue, buzzOpen, wrongIds }; }
@@ -527,7 +596,12 @@
             closeQuestionModal();
         }
 
+        function stopAudioIn(containerId) {
+            document.querySelectorAll(`#${containerId} audio`).forEach(a => { a.pause(); a.currentTime = 0; });
+        }
+
         function revealAnswer() {
+            stopAudioIn('modalQuestionMedia');   // Fragen-Audio aus, sobald die Lösung kommt
             document.getElementById('modalAnswerBox').classList.add('active');
             const ansAudio = document.getElementById('ansAudio'); if (ansAudio) ansAudio.play();
             if (isHost) broadcast({ type: 'REVEAL_ANSWER' });
@@ -540,6 +614,10 @@
                 buzzerQueue = []; wrongIds = []; buzzOpen = false;
                 renderPlayers();
             }
+            // Alle Audios beenden und entfernen, damit nichts weiterläuft
+            stopAudioIn('modalQuestionMedia'); stopAudioIn('modalAnswerMedia');
+            document.getElementById('modalQuestionMedia').innerHTML = '';
+            document.getElementById('modalAnswerMedia').innerHTML = '';
             document.getElementById('questionModal').classList.remove('active');
             if (isHost) broadcast({ type: 'CLOSE_QUESTION' });
         }
@@ -624,8 +702,8 @@
 
         function resetToDefaultData() {
             if (confirm("Möchtest du wirklich ALLE Fragen & Kategorien auf den Ursprungszustand zurücksetzen? Alle Anpassungen gehen verloren!")) {
-                localStorage.removeItem('jeopardy_data');
                 gameData = JSON.parse(JSON.stringify(DEFAULT_DATA));
+                dbDelete(DATA_KEY).catch(() => {});
                 saveDataToStorage();
                 renderBoard();
                 openEditor(); // Editor-Ansicht aktualisieren
@@ -732,7 +810,7 @@
                 // Der Host nimmt von Mitspielern nur Beitritt und Buzzer an
                 if (data.type === 'JOIN') {
                     if (!players.some(p => p.id === data.id)) players.push({ id: data.id, name: data.name, score: 0 });
-                    renderPlayers(); broadcast({ type: 'SYNC_STATE', players, gameData });
+                    renderPlayers(); broadcast({ type: 'SYNC_STATE', players, gameData: gameDataWithoutMedia() });
                 } else if (data.type === 'BUZZ_IN' && data.user) {
                     const before = buzzerQueue.length;
                     addToQueue(data.user);
@@ -748,6 +826,7 @@
             } else if (data.type === 'QUEUE_UPDATE') {
                 applyQueueState(data);
             } else if (data.type === 'OPEN_QUESTION') {
+                if (data.media && gameData[data.col]) Object.assign(gameData[data.col].questions[data.row], data.media);
                 openQuestion(data.col, data.row);
                 applyQueueState(data);
             } else if (data.type === 'REVEAL_ANSWER') {
@@ -759,8 +838,8 @@
             }
         }
 
-        renderBoard();
         renderPlayers();
+        loadStoredData().then(() => renderBoard());
     </script>
 </body>
 </html>
